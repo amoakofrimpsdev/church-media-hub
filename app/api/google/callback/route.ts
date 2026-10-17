@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
   const admin = await requireProfile();
 
   const finish = (query: string) => {
-    const response = NextResponse.redirect(
-      new URL(`/admin/google?${query}`, origin),
-    );
+    // A region's own account was connected from the Regions page.
+    const page = regionId ? "/admin/regions" : "/admin/google";
+    const response = NextResponse.redirect(new URL(`${page}?${query}`, origin));
     response.cookies.delete({ name: STATE_COOKIE, path: "/api/google" });
     return response;
   };

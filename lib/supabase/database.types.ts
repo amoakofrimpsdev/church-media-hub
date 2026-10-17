@@ -496,11 +496,13 @@ export type Database = {
           root_folder_id: string;
           status: GoogleConnectionStatus;
           last_error: string | null;
+          for_new_services: boolean;
           connected_by: string | null;
           connected_at: string;
         };
         Insert: {
           region_id: string;
+          for_new_services?: boolean;
           account_email: string;
           refresh_token_encrypted: string;
           root_folder_id: string;
@@ -512,6 +514,7 @@ export type Database = {
         Update: {
           status?: GoogleConnectionStatus;
           last_error?: string | null;
+          for_new_services?: boolean;
         };
         Relationships: [];
       };

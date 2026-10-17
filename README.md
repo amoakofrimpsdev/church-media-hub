@@ -25,6 +25,9 @@ coordinate in a Telegram group. That left the same problems each week:
 - **Sign-in:** Google sign-in, invite only. Three roles: admins manage everything,
   members upload and complete tasks, viewers (receiving teams) see only the
   categories delivered to their team.
+- **Regions:** each region (Metro Heights, OC, West Valley…) has its own
+  services, people, region admins, Drive folder (or its own Google account) and
+  Telegram group. Members see only their region.
 - **Services:** one-off or weekly recurring, each with Drive folders created for it.
 - **Uploads:** many files at once from a phone, sent straight to Google Drive in
   resumable chunks, with per-file progress and retry. Files are owned by the

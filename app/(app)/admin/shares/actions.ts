@@ -2,7 +2,7 @@
 
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
+import { requireManager } from "@/lib/regions";
 import { expiryFromChoice } from "@/lib/domain/share";
 import { appUrl } from "@/lib/env";
 import type { FormState } from "@/lib/form-state";
@@ -20,7 +20,8 @@ export async function createShareLink(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const admin = await requireAdmin();
+  const { profile: admin, regions } = await requireManager();
+  const isAdmin = admin.role === "admin";
 
   const label = field(formData, "label");
   if (!label) return { error: "Say who this link is for, so you can find it later." };
@@ -35,13 +36,46 @@ export async function createShareLink(
     return { error: "That is not something a link can be made for." };
   }
 
+  const supabase = await createClient();
+
+  // Which region the link is limited to. A service's link follows the
+  // service; any other is for a region the person runs, or (overall admins
+  // only) every region.
+  let regionId: string | null;
+  if (serviceId) {
+    const { data: service } = await supabase
+      .from("services")
+      .select("region_id")
+      .eq("id", serviceId)
+      .maybeSingle();
+    if (!service) return { error: "That service no longer exists." };
+    if (!isAdmin && !regions.some((region) => region.id === service.region_id)) {
+      return { error: "You can only share services from a region you run." };
+    }
+    regionId = service.region_id;
+  } else {
+    const chosen = field(formData, "region");
+    if (chosen) {
+      if (!regions.some((region) => region.id === chosen)) {
+        return { error: "You can only share a region you run." };
+      }
+      regionId = chosen;
+    } else if (isAdmin) {
+      regionId = null;
+    } else if (regions.length === 1) {
+      regionId = regions[0].id;
+    } else {
+      return { error: "Choose which region the link covers." };
+    }
+  }
+
   // 32 random bytes: nobody can guess a working link.
   const token = randomBytes(32).toString("base64url");
 
-  const supabase = await createClient();
   const { error } = await supabase.from("share_links").insert({
     token,
     label,
+    region_id: regionId,
     service_id: serviceId || null,
     category_id: categoryId || null,
     allow_download: formData.get("allow_download") === "on",
@@ -59,7 +93,7 @@ export async function revokeShareLink(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
 
   const id = field(formData, "share_id");
   if (!isUuid(id)) return { error: "Link not found." };

@@ -7,7 +7,7 @@ import { Select } from "@/components/ui/select";
 import { ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/domain/roles";
 import type { Role } from "@/lib/domain/permissions";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
-import { revokeInvite, updatePerson } from "./actions";
+import { revokeInvite, setPersonRegions, updatePerson } from "./actions";
 
 /** Inside a person's panel: change their role, or turn their access on or off. */
 export function PersonManageForm({
@@ -89,6 +89,71 @@ export function CancelInviteButton({ email }: { email: string }) {
         Cancel
       </Button>
       <FormMessage state={state} />
+    </form>
+  );
+}
+
+export type PersonRegion = {
+  id: string;
+  name: string;
+  member: boolean;
+  runs: boolean;
+};
+
+/**
+ * Inside a person's panel: the regions they belong to. Lists only regions the
+ * admin runs; overall admins can also make them a region admin.
+ */
+export function PersonRegionsForm({
+  personId,
+  regions,
+  canSetRegionAdmin,
+}: {
+  personId: string;
+  regions: PersonRegion[];
+  canSetRegionAdmin: boolean;
+}) {
+  const [state, action, pending] = useActionState(setPersonRegions, EMPTY_FORM_STATE);
+
+  return (
+    <form action={action} className="flex flex-col gap-3">
+      <input type="hidden" name="id" value={personId} />
+      <h3 className="text-label text-muted uppercase">Regions</h3>
+      <ul className="flex flex-col gap-2">
+        {regions.map((region) => (
+          <li
+            key={region.id}
+            className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-soft px-3 py-2"
+          >
+            <label className="flex items-center gap-3 text-body-sm font-bold text-ink">
+              <input
+                type="checkbox"
+                name={`region:${region.id}`}
+                defaultChecked={region.member}
+                className="h-4 w-4 accent-primary"
+              />
+              {region.name}
+            </label>
+            {canSetRegionAdmin ? (
+              <label className="flex items-center gap-2 text-caption text-muted">
+                <input
+                  type="checkbox"
+                  name={`region_admin:${region.id}`}
+                  defaultChecked={region.runs}
+                  className="h-4 w-4 accent-primary"
+                />
+                Region admin
+              </label>
+            ) : region.runs ? (
+              <span className="text-caption text-muted">Region admin</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+      <FormMessage state={state} />
+      <Button type="submit" variant="secondary" disabled={pending} className="self-start">
+        Save regions
+      </Button>
     </form>
   );
 }

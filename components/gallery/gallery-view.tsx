@@ -18,6 +18,9 @@ export type GalleryData = {
   canDelete: boolean;
   /** Admins can make a link to the chosen category, or the whole gallery. */
   canShare: boolean;
+  /** Regions a gallery-wide link can cover. */
+  shareRegions?: { id: string; name: string }[];
+  shareAllRegions?: boolean;
 };
 
 /** Every photo and video the person may see, newest first, with filters. */
@@ -52,6 +55,8 @@ export function GalleryView({ data }: { data: GalleryData }) {
             categoryId={filters.categoryId ?? undefined}
             covers={sharedCategory ? `Every ${sharedCategory} album` : "The whole gallery"}
             wide
+            regions={data.shareRegions}
+            allowAllRegions={data.shareAllRegions ?? true}
           />
         ) : null}
       </header>

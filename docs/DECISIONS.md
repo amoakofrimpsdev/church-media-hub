@@ -1015,3 +1015,36 @@ sign-in and without storing anything about the person. It cannot tell one
 person on two devices apart from two people, and someone who clears cookies
 counts again; for "did they look at it, and did they take anything", that is
 close enough.
+
+## Regions
+
+**Choice:** The church's regions (Metro Heights, OC, West Valley and any added
+later) are rows in a `regions` table, managed under Admin → Regions. Every
+service and weekly schedule belongs to one region. People belong to one or more
+regions and see only those. Overall admins (role "admin") are in every region;
+a region admin is a member who runs one region's services, schedule, people,
+share links, Drive and Telegram group. Categories, teams and duty roles stay
+shared by every region.
+
+Storage: a region keeps its files in its own folder in the church Drive, unless
+it connects its own Google account. Each service records which account holds
+its files (`drive_region_id`), so a region can switch either way without
+breaking older services, and Drive calls always use the right account.
+
+Telegram: a region posts to its own group if one is linked (`/linkgroup`, then
+"For <region>"), otherwise to the church's main group, where its services are
+labelled with the region's name.
+
+Everything that existed before regions became the first region, "Main". Its
+Drive folder is the existing "RCW Media" folder, so no files moved. While there
+is only one active region, new services, schedules and invites go into it
+without anyone choosing.
+
+**Why:** The church wants each region to run its own media without seeing the
+others', at no extra cost. Enforcing regions in Row Level Security, like every
+other permission, means a mistake on a page cannot leak another region's
+photos. Letting a region bring its own Google account spreads storage across
+accounts the church already has, instead of paying for more; defaulting to the
+church Drive keeps setup to nothing for a new region. Shared categories and
+teams keep names the same everywhere, so a church-wide share link of "every
+Baptism" still makes sense.

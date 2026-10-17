@@ -46,6 +46,8 @@ export function ShareButton({
   covers,
   wide = false,
   initiallyOpen = false,
+  regions = [],
+  allowAllRegions = true,
 }: {
   serviceId?: string;
   categoryId?: string;
@@ -54,7 +56,14 @@ export function ShareButton({
   /** True when the link covers a lot, to add a word of caution. */
   wide?: boolean;
   initiallyOpen?: boolean;
+  /**
+   * For a link not tied to one service: the regions it can cover. Region
+   * admins choose one of theirs; overall admins can also share every region.
+   */
+  regions?: { id: string; name: string }[];
+  allowAllRegions?: boolean;
 }) {
+  const askRegion = !serviceId && (regions.length > 1 || (!allowAllRegions && regions.length > 0));
   const [state, action, pending] = useActionState(createShareLink, EMPTY_FORM_STATE);
 
   return (
@@ -104,6 +113,17 @@ export function ShareButton({
               ? " That includes everything added to it later, so share it with care."
               : ""}
           </p>
+
+          {askRegion ? (
+            <Select label="Which region" name="region" defaultValue={allowAllRegions ? "" : regions[0]?.id}>
+              {allowAllRegions ? <option value="">Every region</option> : null}
+              {regions.map((region) => (
+                <option key={region.id} value={region.id}>
+                  {region.name}
+                </option>
+              ))}
+            </Select>
+          ) : null}
 
           <Input
             label="Who is it for?"

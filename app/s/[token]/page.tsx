@@ -63,6 +63,9 @@ export default async function SharePage({
     let narrowed = q.eq("status", "complete");
     if (share.service_id) narrowed = narrowed.eq("service_id", share.service_id);
     if (share.category_id) narrowed = narrowed.eq("category_id", share.category_id);
+    // A region admin's link covers only their region. Each query joins the
+    // service for this.
+    if (share.region_id) narrowed = narrowed.eq("services.region_id", share.region_id);
     return narrowed;
   };
 
@@ -70,7 +73,9 @@ export default async function SharePage({
   let itemsQuery = narrow(
     admin
       .from("uploads")
-      .select("id, file_name, mime_type, size_bytes, category_id, services!inner(name, starts_at)"),
+      .select(
+        "id, file_name, mime_type, size_bytes, category_id, services!inner(name, starts_at, region_id)",
+      ),
   )
     .order("completed_at", { ascending: false })
     .range(offset, offset + GALLERY_PAGE_SIZE);
@@ -78,11 +83,13 @@ export default async function SharePage({
 
   const [items, total, present] = await Promise.all([
     itemsQuery,
-    narrow(admin.from("uploads").select("id", { count: "exact", head: true })),
+    narrow(
+      admin.from("uploads").select("id, services!inner(region_id)", { count: "exact", head: true }),
+    ),
     // Which categories actually have files, for the filter chips.
     share.category_id
       ? null
-      : narrow(admin.from("uploads").select("category_id")).limit(1000),
+      : narrow(admin.from("uploads").select("category_id, services!inner(region_id)")).limit(1000),
   ]);
   if (items.error) return <ShareUnavailable />;
 

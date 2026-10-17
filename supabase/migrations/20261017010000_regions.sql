@@ -53,6 +53,9 @@ create table public.region_google_connections (
   root_folder_id text not null,
   status public.google_connection_status not null default 'connected',
   last_error text,
+  -- False once the region goes back to the church Drive. The connection is
+  -- kept while older services still have files in this account.
+  for_new_services boolean not null default true,
   connected_by uuid references public.profiles (id) on delete set null,
   connected_at timestamptz not null default now()
 );

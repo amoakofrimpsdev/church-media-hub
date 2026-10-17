@@ -64,7 +64,7 @@ async function googleHealth(
   const own = regionIds.flatMap((id) => regional.get(id) ?? []);
   if (own.some((connection) => connection.status === "expired")) return { status: "expired" };
   // Regions without their own account rely on the church's.
-  const usesChurch = isAdmin || regionIds.some((id) => !regional.has(id));
+  const usesChurch = isAdmin || regionIds.some((id) => !regional.get(id)?.forNewServices);
   if (!usesChurch) return { status: "connected" };
   return church ? { status: church.status } : null;
 }

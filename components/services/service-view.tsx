@@ -62,7 +62,7 @@ export function ServiceView({ data }: { data: ServiceData }) {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {data.canUpload ? <UploadButton serviceId={data.id} /> : null}
-            {data.isAdmin ? (
+            {data.canManage ? (
               <ShareButton
                 serviceId={data.id}
                 covers={`Everything from ${data.name}, ${data.dateLine.split(" · ")[0]}`}

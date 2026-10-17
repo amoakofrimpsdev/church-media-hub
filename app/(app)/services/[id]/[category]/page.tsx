@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { AlbumView } from "@/components/gallery/album-view";
 import { requireProfile } from "@/lib/auth";
+import { getManagedRegions } from "@/lib/regions";
 import { can } from "@/lib/domain/permissions";
 import { formatChurchDate } from "@/lib/domain/time";
 import { GALLERY_COLUMNS, toGalleryItems } from "@/lib/gallery";
@@ -23,10 +24,12 @@ export default async function AlbumPage({
 
   const supabase = await createClient();
   const [service, category] = await Promise.all([
-    supabase.from("services").select("id, name, starts_at").eq("id", id).maybeSingle(),
+    supabase.from("services").select("id, name, starts_at, region_id").eq("id", id).maybeSingle(),
     supabase.from("categories").select("id, name").eq("slug", slug).maybeSingle(),
   ]);
   if (!service.data || !category.data) notFound();
+  const regionId = service.data.region_id;
+  const manages = (await getManagedRegions()).some((region) => region.id === regionId);
 
   // Row Level Security returns no rows for a category this person cannot see.
   const uploads = await supabase
@@ -51,8 +54,8 @@ export default async function AlbumPage({
         dateLine: formatChurchDate(service.data.starts_at),
         items,
         canUpload: can(profile.role, "upload_media"),
-        canDelete: profile.role === "admin",
-        canShare: profile.role === "admin",
+        canDelete: manages,
+        canShare: manages,
       }}
     />
   );

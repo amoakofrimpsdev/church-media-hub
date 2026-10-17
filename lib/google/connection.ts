@@ -59,16 +59,17 @@ export async function getGoogleConnectionSummary(): Promise<GoogleConnectionSumm
 export async function getConnectionForRegion(
   regionId: string,
 ): Promise<GoogleConnectionSummary | null> {
-  return (await getRegionGoogleSummaries()).get(regionId) ?? (await getGoogleConnectionSummary());
+  const own = (await getRegionGoogleSummaries()).get(regionId);
+  return own?.forNewServices ? own : await getGoogleConnectionSummary();
 }
 
 /** Each region's own Google account, for those that connected one. */
 export async function getRegionGoogleSummaries(): Promise<
-  Map<string, GoogleConnectionSummary>
+  Map<string, GoogleConnectionSummary & { forNewServices: boolean }>
 > {
   const { data, error } = await createAdminClient()
     .from("region_google_connections")
-    .select("region_id, account_email, status, root_folder_id, connected_at");
+    .select("region_id, account_email, status, root_folder_id, connected_at, for_new_services");
   if (error) throw new Error(`Could not read Google connections: ${error.message}`);
   return new Map(
     (data ?? []).map((row) => [
@@ -78,6 +79,7 @@ export async function getRegionGoogleSummaries(): Promise<
         status: row.status,
         rootFolderId: row.root_folder_id,
         connectedAt: row.connected_at,
+        forNewServices: row.for_new_services,
       },
     ]),
   );
@@ -122,7 +124,9 @@ export async function saveGoogleConnection(
     connected_at: new Date().toISOString(),
   };
   const { error } = regionId
-    ? await admin.from("region_google_connections").upsert({ region_id: regionId, ...row })
+    ? await admin
+        .from("region_google_connections")
+        .upsert({ region_id: regionId, for_new_services: true, ...row })
     : await admin.from("google_connection").upsert({ id: true, ...row });
   if (error) throw new Error(`Could not save Google connection: ${error.message}`);
   cachedTokens.delete(cacheKey(regionId));
@@ -130,8 +134,8 @@ export async function saveGoogleConnection(
 
 /**
  * A region goes back to using the church Drive for new services. Services it
- * already has stay in its own account, so the connection row is kept only if
- * something still needs it; otherwise it is removed.
+ * already has stay in its own account, so the connection is kept (but not
+ * used for new services) while something still needs it; otherwise removed.
  */
 export async function disconnectRegionGoogle(regionId: string): Promise<"removed" | "in_use"> {
   const admin = createAdminClient();
@@ -139,7 +143,13 @@ export async function disconnectRegionGoogle(regionId: string): Promise<"removed
     .from("services")
     .select("id", { count: "exact", head: true })
     .eq("drive_region_id", regionId);
-  if ((count ?? 0) > 0) return "in_use";
+  if ((count ?? 0) > 0) {
+    await admin
+      .from("region_google_connections")
+      .update({ for_new_services: false })
+      .eq("region_id", regionId);
+    return "in_use";
+  }
   await admin.from("region_google_connections").delete().eq("region_id", regionId);
   cachedTokens.delete(cacheKey(regionId));
   return "removed";
@@ -242,6 +252,7 @@ export async function driveHomeForRegion(
     .from("region_google_connections")
     .select("region_id")
     .eq("region_id", regionId)
+    .eq("for_new_services", true)
     .maybeSingle();
   if (own) return { account: regionId, session: await getDriveSession(regionId) };
 
