@@ -446,10 +446,10 @@ export const previewSchedule: ScheduleData = {
 
 export const previewShares: SharesData = {
   links: [
-    { id: "l1", label: "Pastor James", covers: "Every Baptism album", url: "https://example.com/s/abc", status: "active", expiry: "Expires in 26 days", allowDownload: true, viewCount: 7, lastViewed: "Wed, Oct 15, 9:40 AM", createdBy: "Ama Owusu" },
-    { id: "l2", label: "Elder Mary (anniversary)", covers: "Everything from Sunday Service, Sun, Oct 12, 2025", url: "https://example.com/s/def", status: "active", expiry: "Expires in 3 days", allowDownload: true, viewCount: 0, lastViewed: null, createdBy: "Ama Owusu" },
-    { id: "l3", label: "Church office screen", covers: "The whole gallery", url: "https://example.com/s/ghi", status: "active", expiry: "Never expires", allowDownload: false, viewCount: 112, lastViewed: "Wed, Oct 15, 11:02 AM", createdBy: "Ama Owusu" },
-    { id: "l4", label: "Visiting speaker", covers: "Preacher from Sunday Service, Sun, Sep 28, 2025", url: "https://example.com/s/jkl", status: "expired", expiry: "Expired", allowDownload: true, viewCount: 4, lastViewed: "Tue, Sep 30, 4:15 PM", createdBy: "Ama Owusu" },
+    { id: "l1", label: "Pastor James", covers: "Every Baptism album", url: "https://example.com/s/abc", status: "active", expiry: "Expires in 26 days", allowDownload: true, viewCount: 11, visitorCount: 3, downloadCount: 24, lastViewed: "Wed, Oct 15, 9:40 AM", createdBy: "Ama Owusu" },
+    { id: "l2", label: "Elder Mary (anniversary)", covers: "Everything from Sunday Service, Sun, Oct 12, 2025", url: "https://example.com/s/def", status: "active", expiry: "Expires in 3 days", allowDownload: true, viewCount: 0, visitorCount: 0, downloadCount: 0, lastViewed: null, createdBy: "Ama Owusu" },
+    { id: "l3", label: "Church office screen", covers: "The whole gallery", url: "https://example.com/s/ghi", status: "active", expiry: "Never expires", allowDownload: false, viewCount: 112, visitorCount: 1, downloadCount: 0, lastViewed: "Wed, Oct 15, 11:02 AM", createdBy: "Ama Owusu" },
+    { id: "l4", label: "Visiting speaker", covers: "Preacher from Sunday Service, Sun, Sep 28, 2025", url: "https://example.com/s/jkl", status: "expired", expiry: "Expired", allowDownload: true, viewCount: 4, visitorCount: 2, downloadCount: 6, lastViewed: "Tue, Sep 30, 4:15 PM", createdBy: "Ama Owusu" },
   ],
 };
 

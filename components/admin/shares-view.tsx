@@ -4,7 +4,7 @@ import { CopyLinkButton } from "@/components/share/share-button";
 import { ActionButton } from "@/components/ui/action-button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/cn";
-import type { ShareStatus } from "@/lib/domain/share";
+import { viewSummary, type ShareStatus } from "@/lib/domain/share";
 import { AdminHeader } from "./page-header";
 
 export type ShareCard = {
@@ -17,7 +17,11 @@ export type ShareCard = {
   /** "Expires in 12 days", "Never expires", "Expired", "Turned off" */
   expiry: string;
   allowDownload: boolean;
+  /** Visits, counting each visitor once per half hour. */
   viewCount: number;
+  /** Different browsers that opened it. */
+  visitorCount: number;
+  downloadCount: number;
   /** "Wed, Oct 15, 12:15 PM", or null if never opened. */
   lastViewed: string | null;
   createdBy: string | null;
@@ -106,9 +110,7 @@ function LinkCard({ link }: { link: ShareCard }) {
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-caption text-muted">
         <span className="flex items-center gap-1">
           <Eye aria-hidden size={13} />
-          {link.viewCount === 0
-            ? "Not opened yet"
-            : `Opened ${link.viewCount} ${link.viewCount === 1 ? "time" : "times"}`}
+          {viewSummary(link)}
         </span>
         <span className="flex items-center gap-1">
           {link.allowDownload ? (
@@ -140,3 +142,4 @@ function LinkCard({ link }: { link: ShareCard }) {
     </div>
   );
 }
+

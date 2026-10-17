@@ -53,6 +53,8 @@ export default async function SharesPage() {
             expiry: expiryLabel(state, now),
             allowDownload: link.allow_download,
             viewCount: link.view_count,
+            visitorCount: link.visitor_count,
+            downloadCount: link.download_count,
             lastViewed: link.last_viewed_at ? formatChurchDateTime(link.last_viewed_at) : null,
             createdBy: link.created_by ? (person.get(link.created_by) ?? null) : null,
           };

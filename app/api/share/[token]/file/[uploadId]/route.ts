@@ -1,10 +1,11 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import { contentDisposition, DIRECT_DOWNLOAD_MAX_BYTES } from "@/lib/domain/gallery";
 import { getDriveSession } from "@/lib/google/connection";
 import { downloadFile } from "@/lib/google/drive";
 import { driveFileViewUrl } from "@/lib/google/links";
 import { ensurePublicFile } from "@/lib/share/drive";
 import { findActiveShare, findSharedUpload } from "@/lib/share/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/uploads/api";
 
 const plain = (status: number, message: string) =>
@@ -34,6 +35,11 @@ export async function GET(
 
   const upload = await findSharedUpload(share, uploadId);
   if (!upload) return plain(404, "Not found.");
+
+  // Count it for the admin's "downloads", without holding up the file.
+  after(async () => {
+    await createAdminClient().rpc("record_share_download", { p_share_id: share.id });
+  });
 
   try {
     if (upload.sizeBytes > DIRECT_DOWNLOAD_MAX_BYTES) {

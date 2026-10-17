@@ -101,3 +101,21 @@ export function expiryLabel(share: ShareState, now: Date): string {
   );
   return days <= 1 ? "Expires today" : `Expires in ${days} days`;
 }
+
+const plural = (count: number, one: string, many: string) =>
+  `${count} ${count === 1 ? one : many}`;
+
+/** "3 people · 11 visits · 24 downloads", or "Not opened yet". */
+export function viewSummary(link: {
+  viewCount: number;
+  visitorCount: number;
+  downloadCount: number;
+}): string {
+  if (link.viewCount === 0 && link.downloadCount === 0) return "Not opened yet";
+  const parts = [];
+  // Links made before visitors were counted have visits but no visitors.
+  if (link.visitorCount > 0) parts.push(plural(link.visitorCount, "person", "people"));
+  parts.push(plural(link.viewCount, "visit", "visits"));
+  if (link.downloadCount > 0) parts.push(plural(link.downloadCount, "download", "downloads"));
+  return parts.join(" · ");
+}
