@@ -59,7 +59,7 @@ export function Modal({
         }}
         aria-label={title}
         className={cn(
-          "m-0 mt-auto max-h-[90dvh] w-full max-w-none overflow-hidden rounded-t-xl border-0 bg-surface p-0 text-ink shadow-float backdrop:bg-black/70",
+          "m-0 mt-auto max-h-[90dvh] w-full max-w-none overflow-hidden rounded-t-xl border-0 bg-surface p-0 text-ink shadow-float backdrop:bg-scrim/60",
           "tablet:m-auto tablet:max-w-lg tablet:rounded-xl",
           open && "animate-rise",
         )}

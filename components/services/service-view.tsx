@@ -120,7 +120,7 @@ export function ServiceView({ data }: { data: ServiceData }) {
         <section className="flex flex-col gap-3">
           <h2 className="text-title-lg text-ink">Albums</h2>
           {data.albums.length === 0 ? (
-            <p className="rounded-lg bg-surface p-6 text-body-sm text-muted">
+            <p className="rounded-lg bg-surface shadow-card p-6 text-body-sm text-muted">
               {data.isViewer
                 ? "Nothing from this service is delivered to your team. If you expected something, ask an admin to check which team you are on."
                 : "There are no active categories. Add one under Admin, Categories."}
@@ -140,7 +140,7 @@ export function ServiceView({ data }: { data: ServiceData }) {
           <div className="flex flex-col gap-6">
             {data.people.length > 0 || data.canManage ? <TeamCard data={data} /> : null}
             {data.handoffs.length > 0 ? (
-              <section className="flex flex-col gap-2 rounded-lg bg-surface p-5">
+              <section className="flex flex-col gap-2 rounded-lg bg-surface shadow-card p-5">
                 <h2 className="text-title-lg text-ink">Handoffs</h2>
                 <HandoffList
                   handoffs={data.handoffs}
@@ -169,7 +169,7 @@ function AlbumCard({
   const href = `/services/${serviceId}/${album.slug}`;
 
   return (
-    <div className="group flex h-full flex-col gap-3 rounded-lg bg-surface p-3 transition-colors hover:bg-surface-soft">
+    <div className="group flex h-full flex-col gap-3 rounded-lg bg-surface shadow-card p-3 transition-colors hover:bg-surface-soft">
       <Link
         href={href}
         aria-label={`Open ${album.name}`}
@@ -250,7 +250,7 @@ const TASK_BADGE: Record<
 
 function TeamCard({ data }: { data: ServiceData }) {
   return (
-    <section className="flex flex-col gap-4 rounded-lg bg-surface p-5">
+    <section className="flex flex-col gap-4 rounded-lg bg-surface shadow-card p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-title-lg text-ink">Who is covering</h2>
         {data.canManage && data.hasOutstanding ? (

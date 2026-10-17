@@ -259,7 +259,7 @@ function UploadSheet({
         if (event.target === event.currentTarget) dialog.current?.close();
       }}
       aria-label="Upload"
-      className="m-0 mt-auto max-h-[92dvh] w-full max-w-none animate-rise overflow-hidden rounded-t-xl border-0 bg-surface p-0 text-ink shadow-float backdrop:bg-black/70 tablet:m-auto tablet:max-w-xl tablet:rounded-xl"
+      className="m-0 mt-auto max-h-[92dvh] w-full max-w-none animate-rise overflow-hidden rounded-t-xl border-0 bg-surface p-0 text-ink shadow-float backdrop:bg-scrim/60 tablet:m-auto tablet:max-w-xl tablet:rounded-xl"
     >
       <div className="flex max-h-[92dvh] flex-col">
         <div className="flex items-center justify-between gap-3 border-b border-hairline px-5 py-4">

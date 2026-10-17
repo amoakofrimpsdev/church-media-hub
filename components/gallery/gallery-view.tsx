@@ -81,7 +81,7 @@ export function GalleryView({ data }: { data: GalleryData }) {
           ))}
         </nav>
 
-        <details open={moreOpen} className="group rounded-lg bg-surface">
+        <details open={moreOpen} className="group rounded-lg bg-surface shadow-card">
           <summary className="flex cursor-pointer list-none items-center gap-2 p-3 text-body-sm font-bold text-ink-soft">
             <SlidersHorizontal aria-hidden size={16} />
             Service and dates
@@ -120,7 +120,7 @@ export function GalleryView({ data }: { data: GalleryData }) {
       </div>
 
       {data.items.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg bg-surface p-10 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-lg bg-surface shadow-card p-10 text-center">
           <ImageOff aria-hidden size={28} className="text-muted-soft" />
           <p className="text-body-sm text-muted">
             {filtered
