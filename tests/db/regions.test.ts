@@ -245,6 +245,16 @@ describe("region admins", () => {
   });
 });
 
+describe("the server's own account", () => {
+  it("can fill in the default region (scheduled jobs and the secret key use it)", async () => {
+    await expect(
+      db.exec(
+        "set role service_role; select private.only_region(); reset role;",
+      ),
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe("with more than one region", () => {
   it("requires a region for a new service", async () => {
     await expect(

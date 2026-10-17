@@ -231,6 +231,10 @@ revoke all on function private.in_region(uuid), private.manages_region(uuid),
   private.service_region(uuid), private.only_region() from public, anon;
 grant execute on function private.in_region(uuid), private.manages_region(uuid),
   private.service_region(uuid), private.only_region() to authenticated;
+-- The default region is filled in for the server too (scheduled jobs, the
+-- secret key), not just for signed-in people.
+grant usage on schema private to service_role;
+grant execute on function private.only_region() to service_role;
 
 -- ── Row level security ──────────────────────────────────────────────────────
 
