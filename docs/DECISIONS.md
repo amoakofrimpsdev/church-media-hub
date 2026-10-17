@@ -986,3 +986,18 @@ closed before it could report, but only once no file has finished for two
 minutes, so a batch still going up is not edited once per file. The message ID
 and the last text sent are kept in `notification_log`, so the sweep edits only
 when something changed, and two callers cannot both send or both edit.
+
+## A light look in the logo's colours
+
+**Choice:** The app is light by default, in the royal blue of the RCW LA Media
+logo, with white cards on a pale blue-grey page. The dark charcoal design is
+replaced by an optional deep-navy dark mode (Light, Dark or Auto, remembered on
+each device). The logo replaces the "R" mark and is the browser and home-screen
+icon.
+
+**Why:** People found the charcoal design gloomy and generic. The church already
+has a brand, and using it makes the app feel like the media team's own. A light
+page also suits a church audience who mostly open the app in daylight on their
+phones. The choice is stored in the browser, not the database: it is a
+per-device preference, and a small script applies it before the page draws, so
+there is no flash of the wrong theme.

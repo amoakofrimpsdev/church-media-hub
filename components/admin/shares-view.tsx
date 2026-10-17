@@ -38,7 +38,7 @@ export function SharesView({ data }: { data: SharesData }) {
       />
 
       {data.links.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg bg-surface p-10 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-lg bg-surface shadow-card p-10 text-center">
           <Link2 aria-hidden size={28} className="text-muted-soft" />
           <p className="max-w-md text-body-sm text-muted">
             No links yet. Open an album, a service or the gallery and tap
@@ -82,7 +82,7 @@ function LinkCard({ link }: { link: ShareCard }) {
   return (
     <div
       className={cn(
-        "flex h-full flex-col gap-3 rounded-lg bg-surface p-4",
+        "flex h-full flex-col gap-3 rounded-lg bg-surface shadow-card p-4",
         !working && "opacity-60",
       )}
     >

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Figtree, Geist_Mono } from "next/font/google";
+import { THEME_SCRIPT } from "@/components/ui/theme-toggle";
 import "./globals.css";
 
 // Figtree: a free geometric sans, close in feel to the font the design system
@@ -26,7 +27,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#101012",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f3f6fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a1022" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -34,7 +38,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${figtree.variable} ${geistMono.variable} h-full antialiased`}
+      // The theme script sets data-theme before React loads.
+      suppressHydrationWarning
     >
+      <head>
+        {/* Applies the saved light or dark choice before the first paint. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

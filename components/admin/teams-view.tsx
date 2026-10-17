@@ -39,7 +39,7 @@ export function TeamsView({ data }: { data: TeamsData }) {
                   : "Receiving team: gets content from the media team."
               }
               triggerLabel={`Open ${team.name}`}
-              triggerClassName="group flex h-full min-h-44 w-full flex-col gap-4 rounded-lg bg-surface p-4 text-left transition-colors hover:bg-surface-soft"
+              triggerClassName="group flex h-full min-h-44 w-full flex-col gap-4 rounded-lg bg-surface shadow-card p-4 text-left transition-colors hover:bg-surface-soft"
               trigger={
                 <>
                   <span className="flex items-start justify-between gap-2">

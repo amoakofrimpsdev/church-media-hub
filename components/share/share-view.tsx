@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, ImageOff, LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { GalleryGrid } from "@/components/gallery/gallery-grid";
+import { Logo } from "@/components/ui/logo";
 import type { GalleryItem } from "@/components/gallery/types";
 import { buttonClasses } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
@@ -32,12 +33,7 @@ const href = (token: string, category: string | null, page: number) => {
 function Brand() {
   return (
     <div className="flex items-center gap-2 text-title text-ink">
-      <span
-        aria-hidden
-        className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-body-sm font-extrabold text-on-primary"
-      >
-        R
-      </span>
+      <Logo size={36} />
       RCW Media
     </div>
   );
@@ -57,7 +53,7 @@ export function ShareView({ data }: { data: ShareData }) {
     <main className="relative flex min-h-dvh flex-1 flex-col">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(60%_100%_at_20%_0%,rgb(157_140_255/0.2),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(60%_100%_at_20%_0%,var(--color-primary-soft),transparent_70%)]"
       />
       <div className="relative mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-6 px-4 py-6 tablet:px-8 tablet:py-10">
         <Brand />
@@ -97,7 +93,7 @@ export function ShareView({ data }: { data: ShareData }) {
         ) : null}
 
         {data.items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 rounded-lg bg-surface p-10 text-center">
+          <div className="flex flex-col items-center gap-3 rounded-lg bg-surface shadow-card p-10 text-center">
             <ImageOff aria-hidden size={28} className="text-muted-soft" />
             <p className="text-body-sm text-muted">
               Nothing here yet. Photos appear as soon as the media team uploads

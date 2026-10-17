@@ -93,7 +93,7 @@ export function ScheduleView({ data }: { data: ScheduleData }) {
                 description={`${series.repeatLabel} at ${series.timeLabel}, Pacific time`}
                 triggerLabel={`Open ${series.name}, ${series.repeatLabel.toLowerCase()}`}
                 triggerClassName={cn(
-                  "group flex h-full min-h-40 w-full flex-col gap-3 rounded-lg bg-surface p-4 text-left transition-colors hover:bg-surface-soft",
+                  "group flex h-full min-h-40 w-full flex-col gap-3 rounded-lg bg-surface shadow-card p-4 text-left transition-colors hover:bg-surface-soft",
                   !series.active && "opacity-60",
                 )}
                 trigger={
@@ -173,7 +173,7 @@ export function ScheduleView({ data }: { data: ScheduleData }) {
 
       <section className="flex flex-col gap-3">
         <h2 className="text-title-lg text-ink">Automatic jobs</h2>
-        <div className="flex flex-col gap-4 rounded-lg bg-surface p-5 tablet:flex-row tablet:items-start tablet:justify-between">
+        <div className="flex flex-col gap-4 rounded-lg bg-surface shadow-card p-5 tablet:flex-row tablet:items-start tablet:justify-between">
           <div className="flex gap-3">
             <span
               className={cn(

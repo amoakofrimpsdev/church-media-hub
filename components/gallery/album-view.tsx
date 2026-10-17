@@ -59,7 +59,7 @@ export function AlbumView({ data }: { data: AlbumData }) {
       </header>
 
       {data.items.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg bg-surface p-10 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-lg bg-surface shadow-card p-10 text-center">
           <ImageOff aria-hidden size={28} className="text-muted-soft" />
           <p className="text-body-sm text-muted">
             Nothing here yet. Files appear as soon as they finish uploading.

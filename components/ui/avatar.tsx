@@ -1,12 +1,12 @@
 import { cn } from "@/lib/cn";
 
-// A few muted hues so a row of people is easy to tell apart at a glance.
+// A few soft pastel hues, readable in light and dark, so a row of people is easy to tell apart at a glance.
 const TINTS = [
-  "bg-[#3b3566] text-[#cfc7ff]",
-  "bg-[#1f4b43] text-[#9ee8d6]",
-  "bg-[#5a3a1e] text-[#ffd29a]",
-  "bg-[#4f2740] text-[#ffb5dc]",
-  "bg-[#22405f] text-[#a8d4ff]",
+  "bg-[#dbe6ff] text-[#1d3a8a]",
+  "bg-[#d3f1e8] text-[#0f5a47]",
+  "bg-[#ffe8c7] text-[#7a4510]",
+  "bg-[#fde0ee] text-[#86204f]",
+  "bg-[#e4e0ff] text-[#3b2f99]",
 ];
 
 export function initials(name: string): string {

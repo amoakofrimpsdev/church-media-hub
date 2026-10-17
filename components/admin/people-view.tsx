@@ -152,7 +152,7 @@ function PersonTile({ person }: { person: PersonCard }) {
     </>
   );
   const tile =
-    "group flex h-full min-h-40 w-full flex-col gap-3 rounded-lg bg-surface p-4 text-left";
+    "group flex h-full min-h-40 w-full flex-col gap-3 rounded-lg bg-surface shadow-card p-4 text-left";
 
   // Your own access is changed by another admin, so your card does not open.
   if (person.isSelf) return <div className={tile}>{body}</div>;
