@@ -21,7 +21,8 @@ import {
   upcomingCutoff,
 } from "@/lib/domain/time";
 import { isVideo } from "@/lib/domain/uploads";
-import { getGoogleConnectionSummary } from "@/lib/google/connection";
+import { getGoogleConnectionSummary, getRegionGoogleSummaries } from "@/lib/google/connection";
+import { getManagedRegions } from "@/lib/regions";
 import { describeHandoffs } from "@/lib/handoffs";
 import type { Profile } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
@@ -47,10 +48,32 @@ const dateLine = (startsAt: string) =>
  * person, so Row Level Security shapes it: a viewer's numbers and photos only
  * cover the categories their team receives.
  */
+/**
+ * The worst state among the Google accounts this person looks after: the
+ * church's (overall admins) and their regions' own. Shaped like a connection
+ * summary so the banner logic stays the same.
+ */
+async function googleHealth(
+  isAdmin: boolean,
+  regionIds: string[],
+): Promise<{ status: "connected" | "expired" } | null> {
+  const [church, regional] = await Promise.all([
+    getGoogleConnectionSummary(),
+    getRegionGoogleSummaries(),
+  ]);
+  const own = regionIds.flatMap((id) => regional.get(id) ?? []);
+  if (own.some((connection) => connection.status === "expired")) return { status: "expired" };
+  // Regions without their own account rely on the church's.
+  const usesChurch = isAdmin || regionIds.some((id) => !regional.get(id)?.forNewServices);
+  if (!usesChurch) return { status: "connected" };
+  return church ? { status: church.status } : null;
+}
+
 export async function loadDashboard(profile: Profile): Promise<DashboardData> {
   const supabase = await createClient();
   const now = currentTime();
-  const canManage = can(profile.role, "manage_services");
+  const managed = await getManagedRegions();
+  const canManage = managed.length > 0;
   const canUpload = can(profile.role, "upload_media");
 
   // "Current" services: the last two weeks and everything upcoming.
@@ -61,7 +84,7 @@ export async function loadDashboard(profile: Profile): Promise<DashboardData> {
       .gte("starts_at", recentCutoff(now))
       .order("starts_at")
       .limit(40),
-    canManage ? getGoogleConnectionSummary() : null,
+    canManage ? googleHealth(profile.role === "admin", managed.map((region) => region.id)) : null,
     profile.role === "viewer"
       ? supabase
           .from("team_members")

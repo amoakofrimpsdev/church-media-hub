@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GalleryView } from "@/components/gallery/gallery-view";
 import { requireProfile } from "@/lib/auth";
+import { getManagedRegions } from "@/lib/regions";
 import {
   dateRangeBounds,
   GALLERY_PAGE_SIZE,
@@ -16,6 +17,7 @@ export default async function GalleryPage({
   searchParams,
 }: PageProps<"/gallery">) {
   const profile = await requireProfile();
+  const managed = await getManagedRegions();
   const filters = parseGalleryFilters(await searchParams);
   const supabase = await createClient();
 
@@ -58,8 +60,10 @@ export default async function GalleryPage({
         })),
         items,
         hasNextPage,
-        canDelete: profile.role === "admin",
-        canShare: profile.role === "admin",
+        canDelete: managed.length > 0,
+        canShare: managed.length > 0,
+        shareRegions: managed.map(({ id, name }) => ({ id, name })),
+        shareAllRegions: profile.role === "admin",
       }}
     />
   );

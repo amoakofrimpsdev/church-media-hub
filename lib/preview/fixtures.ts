@@ -1,5 +1,6 @@
 import type { CategoriesData } from "@/components/admin/categories-view";
 import type { PeopleData } from "@/components/admin/people-view";
+import type { RegionsData } from "@/components/admin/regions-view";
 import type { ScheduleData } from "@/components/admin/schedule-view";
 import type { SharesData } from "@/components/admin/shares-view";
 import type { TeamsData } from "@/components/admin/teams-view";
@@ -399,29 +400,48 @@ export const previewTeams: TeamsData = {
   ],
 };
 
+const PREVIEW_REGIONS = [
+  { id: "g1", name: "Metro Heights" },
+  { id: "g2", name: "OC" },
+  { id: "g3", name: "West Valley" },
+];
+
+/** A person's place in each preview region. */
+const placesIn = (member: string[], runs: string[] = []) =>
+  PREVIEW_REGIONS.map((region) => ({
+    ...region,
+    member: member.includes(region.id),
+    runs: runs.includes(region.id),
+  }));
+const namesOf = (ids: string[]) =>
+  PREVIEW_REGIONS.filter((region) => ids.includes(region.id)).map((region) => region.name);
+
 export const previewPeople: PeopleData = {
   teams: [],
+  regions: PREVIEW_REGIONS,
+  isAdmin: true,
   invites: [
-    { email: "new.volunteer@example.com", role: "member", teamName: "Media" },
-    { email: "pastor.james@example.com", role: "viewer", teamName: "Website" },
+    { email: "new.volunteer@example.com", role: "member", teamName: "Media", regionName: "OC" },
+    { email: "pastor.james@example.com", role: "viewer", teamName: "Website", regionName: "Metro Heights" },
   ],
   people: [
-    { id: "p1", name: "Ama Owusu", email: "ama.owusu@example.com", role: "admin", active: true, isSelf: true, teams: ["Media"], telegramLinked: true },
-    { id: "p2", name: "Grace Mensah", email: "grace.mensah@example.com", role: "member", active: true, isSelf: false, teams: ["Media"], telegramLinked: true },
-    { id: "p3", name: "Sam Boateng", email: "sam.boateng@example.com", role: "member", active: true, isSelf: false, teams: ["Media"], telegramLinked: false },
-    { id: "p4", name: "Kofi Asante", email: "kofi.asante@example.com", role: "member", active: true, isSelf: false, teams: ["Media", "Social Media"], telegramLinked: true },
-    { id: "p5", name: "Tola Adeyemi", email: "tola.adeyemi@example.com", role: "viewer", active: true, isSelf: false, teams: ["Thumbnails"], telegramLinked: false },
-    { id: "p6", name: "Ada Nwosu", email: "ada.nwosu@example.com", role: "viewer", active: true, isSelf: false, teams: [], telegramLinked: false },
-    { id: "p7", name: "Yaw Darko", email: "yaw.darko@example.com", role: "member", active: false, isSelf: false, teams: [], telegramLinked: false },
+    { id: "p1", name: "Ama Owusu", email: "ama.owusu@example.com", role: "admin", active: true, isSelf: true, teams: ["Media"], telegramLinked: true , regionNames: namesOf(['g1']), regions: placesIn(['g1'], []) },
+    { id: "p2", name: "Grace Mensah", email: "grace.mensah@example.com", role: "member", active: true, isSelf: false, teams: ["Media"], telegramLinked: true , regionNames: namesOf(['g1']), regions: placesIn(['g1'], ['g1']) },
+    { id: "p3", name: "Sam Boateng", email: "sam.boateng@example.com", role: "member", active: true, isSelf: false, teams: ["Media"], telegramLinked: false , regionNames: namesOf(['g1', 'g2']), regions: placesIn(['g1', 'g2'], []) },
+    { id: "p4", name: "Kofi Asante", email: "kofi.asante@example.com", role: "member", active: true, isSelf: false, teams: ["Media", "Social Media"], telegramLinked: true , regionNames: namesOf(['g2']), regions: placesIn(['g2'], ['g2']) },
+    { id: "p5", name: "Tola Adeyemi", email: "tola.adeyemi@example.com", role: "viewer", active: true, isSelf: false, teams: ["Thumbnails"], telegramLinked: false , regionNames: namesOf(['g1']), regions: placesIn(['g1'], []) },
+    { id: "p6", name: "Ada Nwosu", email: "ada.nwosu@example.com", role: "viewer", active: true, isSelf: false, teams: [], telegramLinked: false , regionNames: namesOf(['g3']), regions: placesIn(['g3'], []) },
+    { id: "p7", name: "Yaw Darko", email: "yaw.darko@example.com", role: "member", active: false, isSelf: false, teams: [], telegramLinked: false , regionNames: namesOf(['g3']), regions: placesIn(['g3'], []) },
   ],
 };
 
 export const previewSchedule: ScheduleData = {
+  regions: [{ id: "g1", name: "Main" }],
   series: [
-    { id: "r1", name: "Sunday Service", weekday: 0, timeLabel: "10:00 AM", repeatLabel: "Every Sunday", startLabel: null, active: true },
-    { id: "r2", name: "Women's Midweek", weekday: 3, timeLabel: "7:30 PM", repeatLabel: "Every other Wednesday", startLabel: "from Wed, Oct 15", active: true },
-    { id: "r4", name: "Men's Midweek", weekday: 3, timeLabel: "7:30 PM", repeatLabel: "Every other Wednesday", startLabel: "from Wed, Oct 22", active: true },
-    { id: "r3", name: "Youth Night", weekday: 5, timeLabel: "7:00 PM", repeatLabel: "Every Friday", startLabel: null, active: false },
+    { id: "r1", name: "Sunday Service", weekday: 0, timeLabel: "10:00 AM", repeatLabel: "Every Sunday", startLabel: null, active: true, regionName: null },
+    { id: "r2", name: "Women's Midweek", weekday: 3, timeLabel: "7:30 PM", repeatLabel: "Every other Wednesday", startLabel: "from Wed, Oct 15", active: true, regionName: null },
+    { id: "r4", name: "Men's Midweek", weekday: 3, timeLabel: "7:30 PM", repeatLabel: "Every other Wednesday", startLabel: "from Wed, Oct 22", active: true, regionName: null },
+    { id: "r3", name: "Youth Night", weekday: 5, timeLabel: "7:00 PM", repeatLabel: "Every Friday", startLabel: null, active: false, regionName: null },
   ],
   jobs: {
     lastRanLabel: "Wed, Oct 15, 12:15 PM",
@@ -445,10 +465,10 @@ export const previewSchedule: ScheduleData = {
 
 export const previewShares: SharesData = {
   links: [
-    { id: "l1", label: "Pastor James", covers: "Every Baptism album", url: "https://example.com/s/abc", status: "active", expiry: "Expires in 26 days", allowDownload: true, viewCount: 7, lastViewed: "Wed, Oct 15, 9:40 AM", createdBy: "Ama Owusu" },
-    { id: "l2", label: "Elder Mary (anniversary)", covers: "Everything from Sunday Service, Sun, Oct 12, 2025", url: "https://example.com/s/def", status: "active", expiry: "Expires in 3 days", allowDownload: true, viewCount: 0, lastViewed: null, createdBy: "Ama Owusu" },
-    { id: "l3", label: "Church office screen", covers: "The whole gallery", url: "https://example.com/s/ghi", status: "active", expiry: "Never expires", allowDownload: false, viewCount: 112, lastViewed: "Wed, Oct 15, 11:02 AM", createdBy: "Ama Owusu" },
-    { id: "l4", label: "Visiting speaker", covers: "Preacher from Sunday Service, Sun, Sep 28, 2025", url: "https://example.com/s/jkl", status: "expired", expiry: "Expired", allowDownload: true, viewCount: 4, lastViewed: "Tue, Sep 30, 4:15 PM", createdBy: "Ama Owusu" },
+    { id: "l1", label: "Pastor James", covers: "Every Baptism album", url: "https://example.com/s/abc", status: "active", expiry: "Expires in 26 days", allowDownload: true, viewCount: 11, visitorCount: 3, downloadCount: 24, lastViewed: "Wed, Oct 15, 9:40 AM", createdBy: "Ama Owusu" },
+    { id: "l2", label: "Elder Mary (anniversary)", covers: "Everything from Sunday Service, Sun, Oct 12, 2025", url: "https://example.com/s/def", status: "active", expiry: "Expires in 3 days", allowDownload: true, viewCount: 0, visitorCount: 0, downloadCount: 0, lastViewed: null, createdBy: "Ama Owusu" },
+    { id: "l3", label: "Church office screen", covers: "The whole gallery", url: "https://example.com/s/ghi", status: "active", expiry: "Never expires", allowDownload: false, viewCount: 112, visitorCount: 1, downloadCount: 0, lastViewed: "Wed, Oct 15, 11:02 AM", createdBy: "Ama Owusu" },
+    { id: "l4", label: "Visiting speaker", covers: "Preacher from Sunday Service, Sun, Sep 28, 2025", url: "https://example.com/s/jkl", status: "expired", expiry: "Expired", allowDownload: true, viewCount: 4, visitorCount: 2, downloadCount: 6, lastViewed: "Tue, Sep 30, 4:15 PM", createdBy: "Ama Owusu" },
   ],
 };
 
@@ -463,4 +483,45 @@ export const previewShare: ShareData = {
   items: galleryItems.map((item) => ({ ...item, caption: "Baptism · Sunday Service · Sun, Oct 12, 2025", uploadedBy: null })),
   page: 1,
   hasNextPage: true,
+};
+
+export const previewRegions: RegionsData = {
+  isAdmin: true,
+  botUsername: "rcwmediabot",
+  notice: null,
+  regions: [
+    {
+      id: "g1",
+      name: "Metro Heights",
+      active: true,
+      people: 14,
+      upcomingServices: 3,
+      admins: ["Grace Mensah"],
+      drive: { kind: "church" },
+      oldDriveEmail: null,
+      telegram: { kind: "own", title: "Metro Heights Media" },
+    },
+    {
+      id: "g2",
+      name: "OC",
+      active: true,
+      people: 9,
+      upcomingServices: 2,
+      admins: ["Kofi Asante"],
+      drive: { kind: "own", email: "oc.media@gmail.com", expired: false },
+      oldDriveEmail: null,
+      telegram: { kind: "main" },
+    },
+    {
+      id: "g3",
+      name: "West Valley",
+      active: true,
+      people: 6,
+      upcomingServices: 1,
+      admins: [],
+      drive: { kind: "church" },
+      oldDriveEmail: null,
+      telegram: { kind: "main" },
+    },
+  ],
 };

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { CategoriesView } from "@/components/admin/categories-view";
 import { PeopleView } from "@/components/admin/people-view";
+import { RegionsView } from "@/components/admin/regions-view";
 import { ScheduleView } from "@/components/admin/schedule-view";
 import { SeriesForm } from "@/app/(app)/admin/schedule/series-form";
 import { SharesView } from "@/components/admin/shares-view";
@@ -14,6 +15,7 @@ import { ServiceView } from "@/components/services/service-view";
 import { ShareUnavailable, ShareView } from "@/components/share/share-view";
 import { AppShell } from "@/components/shell/app-shell";
 import {
+  previewRegions,
   previewAlbum,
   previewCategories,
   previewDashboard,
@@ -149,13 +151,19 @@ export default async function PreviewPage({
     case "series-form":
       return (
         <main className="mx-auto max-w-lg p-6">
-          <SeriesForm />
+          <SeriesForm regions={[{ id: "g1", name: "Metro Heights" }, { id: "g2", name: "OC" }]} />
         </main>
       );
     case "schedule":
       return (
         <AppShell user={previewUser} upload={previewUpload} currentPath="/admin/schedule">
           <ScheduleView data={previewSchedule} />
+        </AppShell>
+      );
+    case "regions":
+      return (
+        <AppShell user={previewUser} upload={previewUpload} currentPath="/admin/regions">
+          <RegionsView data={previewRegions} />
         </AppShell>
       );
     case "shares":

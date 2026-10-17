@@ -1,5 +1,6 @@
 import { BellRing, FolderCheck, Images, UploadCloud } from "lucide-react";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
+import { Logo } from "@/components/ui/logo";
 
 const ERRORS: Record<string, { title: string; body: string }> = {
   not_invited: {
@@ -39,20 +40,6 @@ const FEATURES = [
   },
 ];
 
-// A wall of tiles standing in for an album: photos are private, so the
-// sign-in page shows the shape of the gallery, not its contents.
-const TILES = [
-  "from-[#4b3fa8] to-[#221c52]",
-  "from-[#7a3b6b] to-[#2b1530]",
-  "from-[#1f5f66] to-[#0f262b]",
-  "from-[#8a5a2b] to-[#33200f]",
-  "from-[#3a4f9c] to-[#151d3d]",
-  "from-[#6b3fa0] to-[#241440]",
-  "from-[#2d6b4f] to-[#10261c]",
-  "from-[#9c4a4a] to-[#391a1a]",
-  "from-[#3f6aa8] to-[#17263d]",
-];
-
 export function LoginView({
   errorKey,
   next,
@@ -65,21 +52,16 @@ export function LoginView({
 
   return (
     <main className="relative flex min-h-dvh flex-1 overflow-hidden">
-      {/* Atmosphere: two soft glows of the accent behind everything. */}
+      {/* A soft wash of the brand blue behind everything. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_15%_0%,rgb(157_140_255/0.22),transparent_70%),radial-gradient(50%_45%_at_100%_100%,rgb(157_140_255/0.12),transparent_70%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_10%_0%,var(--color-primary-soft),transparent_70%)]"
       />
 
-      <div className="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-6 py-12 desktop:grid-cols-[1.05fr_0.95fr] desktop:gap-16 desktop:px-10">
+      <div className="relative mx-auto grid w-full max-w-[1200px] items-center gap-10 px-6 py-10 desktop:grid-cols-2 desktop:gap-16 desktop:px-10">
         <div className="stagger flex flex-col gap-8">
-          <div className="flex items-center gap-2 text-title text-ink">
-            <span
-              aria-hidden
-              className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-body font-extrabold text-on-primary"
-            >
-              R
-            </span>
+          <div className="flex items-center gap-3 text-title text-ink">
+            <Logo size={44} />
             RCW Media
           </div>
 
@@ -112,7 +94,7 @@ export function LoginView({
           <ul className="grid max-w-xl gap-x-6 gap-y-5 tablet:grid-cols-2">
             {FEATURES.map((feature) => (
               <li key={feature.title} className="flex gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-surface-strong text-primary">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary">
                   <feature.icon aria-hidden size={18} />
                 </span>
                 <span className="flex flex-col">
@@ -124,20 +106,14 @@ export function LoginView({
           </ul>
         </div>
 
-        {/* The album wall. Decorative, so hidden from screen readers. */}
-        <div aria-hidden className="relative hidden desktop:block">
-          <div className="grid rotate-3 grid-cols-3 gap-3">
-            {TILES.map((tile, index) => (
-              <div
-                key={tile}
-                style={{ animationDelay: `${index * 70}ms` }}
-                className={`aspect-[4/5] animate-rise rounded-lg bg-gradient-to-br shadow-card ${tile} ${
-                  index % 3 === 1 ? "translate-y-6" : ""
-                }`}
-              />
-            ))}
-          </div>
-          <div className="pointer-events-none absolute -inset-16 bg-gradient-to-t from-canvas via-transparent to-canvas/70" />
+        {/* The brand panel: the logo on the blue of its own ring. Decorative. */}
+        <div
+          aria-hidden
+          className="theme-brand relative hidden aspect-square animate-rise items-center justify-center overflow-hidden rounded-xl shadow-float desktop:flex"
+        >
+          <div className="absolute h-[78%] w-[78%] rounded-full border border-hairline" />
+          <div className="absolute h-[94%] w-[94%] rounded-full border border-hairline-soft opacity-60" />
+          <Logo size={340} className="shadow-float ring-8 ring-white/25" />
         </div>
       </div>
     </main>

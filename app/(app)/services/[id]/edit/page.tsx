@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/auth";
+import { requireManager } from "@/lib/regions";
 import { churchClockTime, churchIsoDate } from "@/lib/domain/time";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/uploads/api";
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Edit service" };
 export default async function EditServicePage({
   params,
 }: PageProps<"/services/[id]/edit">) {
-  await requireAdmin();
+  await requireManager();
   const { id } = await params;
   if (!isUuid(id)) notFound();
 
@@ -27,6 +27,8 @@ export default async function EditServicePage({
       .eq("service_id", id),
   ]);
   if (!service.data) notFound();
+  // Only someone who runs this service's region can edit it.
+  await requireManager(service.data.region_id);
   const uploadCount = uploads.count ?? 0;
 
   return (

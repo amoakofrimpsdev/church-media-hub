@@ -29,7 +29,7 @@ export function ServiceListView({
       <section className="flex flex-col gap-3">
         <h2 className="text-title-lg text-ink">Upcoming</h2>
         {upcoming.length === 0 ? (
-          <p className="rounded-lg bg-surface p-6 text-body-sm text-muted">
+          <p className="rounded-lg bg-surface shadow-card p-6 text-body-sm text-muted">
             {canManage
               ? "Nothing scheduled. Create the next service, or set up a weekly one under Admin, Schedule."
               : "Nothing scheduled yet."}
@@ -56,7 +56,7 @@ function ServiceGrid({ services }: { services: ServiceSummary[] }) {
         <li key={service.id}>
           <Link
             href={`/services/${service.id}`}
-            className="group flex h-full flex-col gap-3 rounded-lg bg-surface p-3 transition-colors hover:bg-surface-soft"
+            className="group flex h-full flex-col gap-3 rounded-lg bg-surface shadow-card p-3 transition-colors hover:bg-surface-soft"
           >
             <span className="relative block aspect-square overflow-hidden rounded-md bg-surface-strong">
               {service.cover ? (
@@ -69,7 +69,7 @@ function ServiceGrid({ services }: { services: ServiceSummary[] }) {
                 />
               ) : (
                 // No photo yet: the date stands in as the cover.
-                <span className="flex h-full flex-col items-center justify-center bg-[radial-gradient(120%_120%_at_0%_0%,rgb(157_140_255/0.28),transparent_60%)]">
+                <span className="flex h-full flex-col items-center justify-center bg-[radial-gradient(120%_120%_at_0%_0%,var(--color-primary-soft),transparent_60%)]">
                   <span className="text-label text-primary uppercase">{service.weekday}</span>
                   <span className="text-[3.5rem] leading-none font-extrabold text-ink">
                     {service.day}
@@ -82,6 +82,9 @@ function ServiceGrid({ services }: { services: ServiceSummary[] }) {
               </span>
             </span>
             <span className="flex flex-col gap-0.5">
+              {service.regionName ? (
+                <span className="text-label text-primary uppercase">{service.regionName}</span>
+              ) : null}
               <span className="truncate text-title text-ink">{service.name}</span>
               <span className="text-caption text-muted">{service.dateLine}</span>
             </span>

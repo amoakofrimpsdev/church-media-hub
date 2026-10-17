@@ -18,6 +18,9 @@ export type GalleryData = {
   canDelete: boolean;
   /** Admins can make a link to the chosen category, or the whole gallery. */
   canShare: boolean;
+  /** Regions a gallery-wide link can cover. */
+  shareRegions?: { id: string; name: string }[];
+  shareAllRegions?: boolean;
 };
 
 /** Every photo and video the person may see, newest first, with filters. */
@@ -52,6 +55,8 @@ export function GalleryView({ data }: { data: GalleryData }) {
             categoryId={filters.categoryId ?? undefined}
             covers={sharedCategory ? `Every ${sharedCategory} album` : "The whole gallery"}
             wide
+            regions={data.shareRegions}
+            allowAllRegions={data.shareAllRegions ?? true}
           />
         ) : null}
       </header>
@@ -81,7 +86,7 @@ export function GalleryView({ data }: { data: GalleryData }) {
           ))}
         </nav>
 
-        <details open={moreOpen} className="group rounded-lg bg-surface">
+        <details open={moreOpen} className="group rounded-lg bg-surface shadow-card">
           <summary className="flex cursor-pointer list-none items-center gap-2 p-3 text-body-sm font-bold text-ink-soft">
             <SlidersHorizontal aria-hidden size={16} />
             Service and dates
@@ -120,7 +125,7 @@ export function GalleryView({ data }: { data: GalleryData }) {
       </div>
 
       {data.items.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-lg bg-surface p-10 text-center">
+        <div className="flex flex-col items-center gap-3 rounded-lg bg-surface shadow-card p-10 text-center">
           <ImageOff aria-hidden size={28} className="text-muted-soft" />
           <p className="text-body-sm text-muted">
             {filtered

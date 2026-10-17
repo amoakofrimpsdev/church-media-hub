@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getDriveSession } from "./connection";
+import { getDriveSession, type DriveAccount } from "./connection";
 import { grantReader, removePermission } from "./drive";
 
 /**
@@ -13,6 +13,7 @@ import { grantReader, removePermission } from "./drive";
 export async function ensureFolderGrant(
   profile: { id: string; email: string },
   driveFolderId: string,
+  account: DriveAccount,
 ): Promise<void> {
   const admin = createAdminClient();
   const { data: existing } = await admin
@@ -24,7 +25,7 @@ export async function ensureFolderGrant(
 
   if (existing && !existing.revoke_requested_at) return;
 
-  const { accessToken } = await getDriveSession();
+  const { accessToken } = await getDriveSession(account);
   // Granting again for the same account is harmless: Google returns the
   // existing permission.
   const permissionId = await grantReader(accessToken, driveFolderId, profile.email);
@@ -34,6 +35,7 @@ export async function ensureFolderGrant(
     drive_folder_id: driveFolderId,
     permission_id: permissionId,
     revoke_requested_at: null,
+    drive_region_id: account,
   });
   if (error) throw new Error(`Could not record Drive access: ${error.message}`);
 }
@@ -52,13 +54,13 @@ export async function revokeDriveGrants(profileId: string): Promise<void> {
     .from("drive_grants")
     .update({ revoke_requested_at: new Date().toISOString() })
     .eq("profile_id", profileId)
-    .select("drive_folder_id, permission_id");
+    .select("drive_folder_id, permission_id, drive_region_id");
   if (!grants || grants.length === 0) return;
 
   try {
-    const { accessToken } = await getDriveSession();
     await Promise.all(
       grants.map(async (grant) => {
+        const { accessToken } = await getDriveSession(grant.drive_region_id);
         await removePermission(accessToken, grant.drive_folder_id, grant.permission_id);
         await admin
           .from("drive_grants")
@@ -80,15 +82,15 @@ export async function retryPendingRevocations(): Promise<number> {
   const admin = createAdminClient();
   const { data: pending } = await admin
     .from("drive_grants")
-    .select("profile_id, drive_folder_id, permission_id")
+    .select("profile_id, drive_folder_id, permission_id, drive_region_id")
     .not("revoke_requested_at", "is", null)
     .limit(100);
   if (!pending || pending.length === 0) return 0;
 
-  const { accessToken } = await getDriveSession();
   let removed = 0;
   for (const grant of pending) {
     try {
+      const { accessToken } = await getDriveSession(grant.drive_region_id);
       await removePermission(accessToken, grant.drive_folder_id, grant.permission_id);
       await admin
         .from("drive_grants")

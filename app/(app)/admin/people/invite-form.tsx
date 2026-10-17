@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
+import { RegionSelect, type RegionOption } from "@/components/ui/region-select";
 import { Select } from "@/components/ui/select";
 import type { Role } from "@/lib/domain/permissions";
 import { isRole, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/domain/roles";
@@ -11,7 +12,17 @@ import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import type { Team } from "@/lib/supabase/database.types";
 import { invitePerson } from "./actions";
 
-export function InviteForm({ teams }: { teams: Team[] }) {
+export function InviteForm({
+  teams,
+  regions,
+  isAdmin,
+}: {
+  teams: Team[];
+  /** Regions the inviter runs. */
+  regions: RegionOption[];
+  /** Overall admins can invite admins and make region admins. */
+  isAdmin: boolean;
+}) {
   const [state, action, pending] = useActionState(
     invitePerson,
     EMPTY_FORM_STATE,
@@ -41,7 +52,7 @@ export function InviteForm({ teams }: { teams: Team[] }) {
             if (isRole(event.target.value)) setRole(event.target.value);
           }}
         >
-          {ROLES.map((option) => (
+          {ROLES.filter((option) => isAdmin || option !== "admin").map((option) => (
             <option key={option} value={option}>
               {ROLE_LABELS[option]}: {ROLE_DESCRIPTIONS[option]}
             </option>
@@ -61,6 +72,18 @@ export function InviteForm({ teams }: { teams: Team[] }) {
           ))}
         </Select>
       </div>
+      <RegionSelect regions={regions} label="Region they join" />
+      {isAdmin && role === "member" && regions.length > 0 ? (
+        <label className="flex items-start gap-3 rounded-md bg-surface-soft p-3 text-body-sm text-ink">
+          <input type="checkbox" name="region_admin" className="mt-1 h-4 w-4 accent-primary" />
+          <span className="flex flex-col">
+            <span className="font-bold">Region admin</span>
+            <span className="text-caption text-muted">
+              Runs this region: its services, schedule, people, Drive and Telegram group.
+            </span>
+          </span>
+        </label>
+      ) : null}
       {isViewer ? (
         <p className="text-body-sm text-muted">
           A viewer sees only the categories delivered to their team, so they

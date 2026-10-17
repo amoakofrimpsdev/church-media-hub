@@ -986,3 +986,65 @@ closed before it could report, but only once no file has finished for two
 minutes, so a batch still going up is not edited once per file. The message ID
 and the last text sent are kept in `notification_log`, so the sweep edits only
 when something changed, and two callers cannot both send or both edit.
+
+## A light look in the logo's colours
+
+**Choice:** The app is light by default, in the royal blue of the RCW LA Media
+logo, with white cards on a pale blue-grey page. The dark charcoal design is
+replaced by an optional deep-navy dark mode (Light, Dark or Auto, remembered on
+each device). The logo replaces the "R" mark and is the browser and home-screen
+icon.
+
+**Why:** People found the charcoal design gloomy and generic. The church already
+has a brand, and using it makes the app feel like the media team's own. A light
+page also suits a church audience who mostly open the app in daylight on their
+phones. The choice is stored in the browser, not the database: it is a
+per-device preference, and a small script applies it before the page draws, so
+there is no flash of the wrong theme.
+
+## Counting people, not page loads, on share links
+
+**Choice:** Each browser that opens a share link gets a random visitor ID in a
+cookie. Shared links shows how many different people opened a link, how many
+visits there were (a visitor counts again only after half an hour away) and how
+many files were downloaded.
+
+**Why:** The old count went up on every page load, so one pastor refreshing
+five times looked like five people. A random ID tells browsers apart without
+sign-in and without storing anything about the person. It cannot tell one
+person on two devices apart from two people, and someone who clears cookies
+counts again; for "did they look at it, and did they take anything", that is
+close enough.
+
+## Regions
+
+**Choice:** The church's regions (Metro Heights, OC, West Valley and any added
+later) are rows in a `regions` table, managed under Admin → Regions. Every
+service and weekly schedule belongs to one region. People belong to one or more
+regions and see only those. Overall admins (role "admin") are in every region;
+a region admin is a member who runs one region's services, schedule, people,
+share links, Drive and Telegram group. Categories, teams and duty roles stay
+shared by every region.
+
+Storage: a region keeps its files in its own folder in the church Drive, unless
+it connects its own Google account. Each service records which account holds
+its files (`drive_region_id`), so a region can switch either way without
+breaking older services, and Drive calls always use the right account.
+
+Telegram: a region posts to its own group if one is linked (`/linkgroup`, then
+"For <region>"), otherwise to the church's main group, where its services are
+labelled with the region's name.
+
+Everything that existed before regions became the first region, "Main". Its
+Drive folder is the existing "RCW Media" folder, so no files moved. While there
+is only one active region, new services, schedules and invites go into it
+without anyone choosing.
+
+**Why:** The church wants each region to run its own media without seeing the
+others', at no extra cost. Enforcing regions in Row Level Security, like every
+other permission, means a mistake on a page cannot leak another region's
+photos. Letting a region bring its own Google account spreads storage across
+accounts the church already has, instead of paying for more; defaulting to the
+church Drive keeps setup to nothing for a new region. Shared categories and
+teams keep names the same everywhere, so a church-wide share link of "every
+Baptism" still makes sense.

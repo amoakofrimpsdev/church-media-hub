@@ -12,7 +12,8 @@ export type NavIcon =
   | "schedule"
   | "drive"
   | "telegram"
-  | "share";
+  | "share"
+  | "regions";
 
 export type NavLink = { href: string; label: string; icon: NavIcon };
 
@@ -25,6 +26,7 @@ export const MAIN_NAV: NavLink[] = [
 
 /** Admin sections are reachable directly, not through an index page. */
 export const ADMIN_NAV: NavLink[] = [
+  { href: "/admin/regions", label: "Regions", icon: "regions" },
   { href: "/admin/people", label: "People", icon: "people" },
   { href: "/admin/teams", label: "Teams", icon: "teams" },
   { href: "/admin/categories", label: "Categories", icon: "categories" },
@@ -34,8 +36,21 @@ export const ADMIN_NAV: NavLink[] = [
   { href: "/admin/telegram", label: "Telegram", icon: "telegram" },
 ];
 
-export function adminNavFor(role: Role): NavLink[] {
-  return role === "admin" ? ADMIN_NAV : [];
+/** What a region admin runs for their own region. */
+const REGION_ADMIN_NAV = new Set([
+  "/admin/regions",
+  "/admin/people",
+  "/admin/schedule",
+  "/admin/shares",
+]);
+
+export function adminNavFor(role: Role, runsARegion = false): NavLink[] {
+  if (role === "admin") return ADMIN_NAV;
+  if (!runsARegion) return [];
+  // Their region's Drive and Telegram group are managed on its card.
+  return ADMIN_NAV.filter((link) => REGION_ADMIN_NAV.has(link.href)).map((link) =>
+    link.href === "/admin/regions" ? { ...link, label: "Your region" } : link,
+  );
 }
 
 export function isActive(pathname: string, href: string): boolean {

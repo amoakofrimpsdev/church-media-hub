@@ -1,9 +1,11 @@
-import { MailPlus, Settings2, TriangleAlert, UserPlus } from "lucide-react";
+import { MailPlus, MapPin, Settings2, TriangleAlert, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { InviteForm } from "@/app/(app)/admin/people/invite-form";
 import {
   CancelInviteButton,
   PersonManageForm,
+  PersonRegionsForm,
+  type PersonRegion,
 } from "@/app/(app)/admin/people/person-manage-form";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -24,13 +26,21 @@ export type PersonCard = {
   isSelf: boolean;
   teams: string[];
   telegramLinked: boolean;
+  /** Region names shown on the card (when there is more than one region). */
+  regionNames: string[];
+  /** The regions the viewer of this page runs, with this person's place in each. */
+  regions: PersonRegion[];
 };
 
 export type PeopleData = {
   people: PersonCard[];
-  invites: { email: string; role: Role; teamName: string | null }[];
+  invites: { email: string; role: Role; teamName: string | null; regionName: string | null }[];
   /** For the invite form's team picker. */
   teams: Team[];
+  /** Regions the person on this page runs. */
+  regions: { id: string; name: string }[];
+  /** Overall admins change roles and access; region admins only regions. */
+  isAdmin: boolean;
 };
 
 const ROLE_TONE: Record<Role, "accent" | "neutral" | "success"> = {
@@ -58,7 +68,7 @@ export function PeopleView({ data }: { data: PeopleData }) {
               </>
             }
           >
-            <InviteForm teams={data.teams} />
+            <InviteForm teams={data.teams} regions={data.regions} isAdmin={data.isAdmin} />
           </Modal>
         }
       />
@@ -85,6 +95,7 @@ export function PeopleView({ data }: { data: PeopleData }) {
                     <span className="truncate text-caption text-muted">
                       {ROLE_LABELS[invite.role]}
                       {invite.teamName ? ` · ${invite.teamName}` : ""}
+                      {invite.regionName ? ` · ${invite.regionName}` : ""}
                     </span>
                   </span>
                 </span>
@@ -100,7 +111,7 @@ export function PeopleView({ data }: { data: PeopleData }) {
         <ul className="grid gap-3 tablet:grid-cols-2 tablet:gap-4 desktop:grid-cols-3">
           {data.people.map((person) => (
             <li key={person.id}>
-              <PersonTile person={person} />
+              <PersonTile person={person} isAdmin={data.isAdmin} />
             </li>
           ))}
         </ul>
@@ -109,7 +120,7 @@ export function PeopleView({ data }: { data: PeopleData }) {
   );
 }
 
-function PersonTile({ person }: { person: PersonCard }) {
+function PersonTile({ person, isAdmin }: { person: PersonCard; isAdmin: boolean }) {
   const viewerWithoutTeam =
     person.role === "viewer" && person.active && person.teams.length === 0;
 
@@ -139,6 +150,12 @@ function PersonTile({ person }: { person: PersonCard }) {
         ) : (
           <Badge tone="danger">Access off</Badge>
         )}
+        {person.regionNames.map((region) => (
+          <Badge key={`region-${region}`}>
+            <MapPin aria-hidden size={11} className="mr-1" />
+            {region}
+          </Badge>
+        ))}
         {person.teams.map((team) => (
           <Badge key={team}>{team}</Badge>
         ))}
@@ -152,7 +169,7 @@ function PersonTile({ person }: { person: PersonCard }) {
     </>
   );
   const tile =
-    "group flex h-full min-h-40 w-full flex-col gap-3 rounded-lg bg-surface p-4 text-left";
+    "group flex h-full min-h-40 w-full flex-col gap-3 rounded-lg bg-surface shadow-card p-4 text-left";
 
   // Your own access is changed by another admin, so your card does not open.
   if (person.isSelf) return <div className={tile}>{body}</div>;
@@ -173,12 +190,21 @@ function PersonTile({ person }: { person: PersonCard }) {
           </Link>
         </p>
       ) : null}
-      <PersonManageForm
-        personId={person.id}
-        personName={person.name}
-        role={person.role}
-        active={person.active}
-      />
+      {person.regions.length > 0 && person.role !== "admin" ? (
+        <PersonRegionsForm
+          personId={person.id}
+          regions={person.regions}
+          canSetRegionAdmin={isAdmin && person.role === "member"}
+        />
+      ) : null}
+      {isAdmin ? (
+        <PersonManageForm
+          personId={person.id}
+          personName={person.name}
+          role={person.role}
+          active={person.active}
+        />
+      ) : null}
       <p className="text-caption text-muted">
         {person.telegramLinked
           ? "Telegram is connected, so the bot can tag them."

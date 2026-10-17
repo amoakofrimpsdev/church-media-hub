@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import type { GalleryItem } from "@/components/gallery/types";
 import { ShareUnavailable, ShareView } from "@/components/share/share-view";
 import { GALLERY_PAGE_SIZE } from "@/lib/domain/gallery";
@@ -6,7 +7,9 @@ import { scopeKind } from "@/lib/domain/share";
 import { formatChurchDate } from "@/lib/domain/time";
 import { isVideo } from "@/lib/domain/uploads";
 import { findActiveShare } from "@/lib/share/server";
+import { SHARE_VISITOR_COOKIE } from "@/lib/share/visitor";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isUuid } from "@/lib/uploads/api";
 
 // Private links must not be indexed, and their address must not be passed to
 // other sites (Google Drive, for one) when a visitor follows a link out.
@@ -60,6 +63,9 @@ export default async function SharePage({
     let narrowed = q.eq("status", "complete");
     if (share.service_id) narrowed = narrowed.eq("service_id", share.service_id);
     if (share.category_id) narrowed = narrowed.eq("category_id", share.category_id);
+    // A region admin's link covers only their region. Each query joins the
+    // service for this.
+    if (share.region_id) narrowed = narrowed.eq("services.region_id", share.region_id);
     return narrowed;
   };
 
@@ -67,7 +73,9 @@ export default async function SharePage({
   let itemsQuery = narrow(
     admin
       .from("uploads")
-      .select("id, file_name, mime_type, size_bytes, category_id, services!inner(name, starts_at)"),
+      .select(
+        "id, file_name, mime_type, size_bytes, category_id, services!inner(name, starts_at, region_id)",
+      ),
   )
     .order("completed_at", { ascending: false })
     .range(offset, offset + GALLERY_PAGE_SIZE);
@@ -75,17 +83,23 @@ export default async function SharePage({
 
   const [items, total, present] = await Promise.all([
     itemsQuery,
-    narrow(admin.from("uploads").select("id", { count: "exact", head: true })),
+    narrow(
+      admin.from("uploads").select("id, services!inner(region_id)", { count: "exact", head: true }),
+    ),
     // Which categories actually have files, for the filter chips.
     share.category_id
       ? null
-      : narrow(admin.from("uploads").select("category_id")).limit(1000),
+      : narrow(admin.from("uploads").select("category_id, services!inner(region_id)")).limit(1000),
   ]);
   if (items.error) return <ShareUnavailable />;
 
   // Count this visit (first page only, so paging does not inflate it).
   if (page === 1 && !filterCategory) {
-    await admin.rpc("record_share_view", { p_share_id: share.id });
+    const visitor = (await cookies()).get(SHARE_VISITOR_COOKIE)?.value;
+    await admin.rpc("record_share_view", {
+      p_share_id: share.id,
+      p_visitor_id: visitor && isUuid(visitor) ? visitor : null,
+    });
   }
 
   const categoryName = new Map(allCategories.map((category) => [category.id, category.name]));

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { checkUpload } from "@/lib/domain/uploads";
 import {
+  driveAccountForService,
   getDriveSession,
   markGoogleConnectionExpired,
 } from "@/lib/google/connection";
@@ -51,8 +52,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const account = await driveAccountForService(body.serviceId);
   try {
-    const { accessToken } = await getDriveSession();
+    const { accessToken } = await getDriveSession(account);
     const sessionUrl = await startResumableUpload(
       accessToken,
       {
@@ -81,7 +83,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ uploadId: upload.id, sessionUrl });
   } catch (error) {
     if (error instanceof GoogleConnectionExpiredError) {
-      await markGoogleConnectionExpired("Google rejected the saved sign-in.");
+      await markGoogleConnectionExpired("Google rejected the saved sign-in.", account);
     }
     return uploadFailure(error);
   }

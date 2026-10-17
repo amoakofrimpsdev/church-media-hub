@@ -30,7 +30,7 @@ export function GoogleSignInButton({ next }: { next?: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <Button onClick={signIn} disabled={pending} className="w-full bg-white text-black hover:bg-white/90">
+      <Button onClick={signIn} disabled={pending} className="w-full">
         {pending ? "Opening Google…" : "Continue with Google"}
       </Button>
       {failed ? (

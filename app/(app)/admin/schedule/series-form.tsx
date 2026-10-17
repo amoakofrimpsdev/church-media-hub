@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
+import { RegionSelect, type RegionOption } from "@/components/ui/region-select";
 import { Select } from "@/components/ui/select";
 import { REPEAT_CHOICES, WEEKDAYS } from "@/lib/domain/recurrence";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
@@ -17,7 +18,7 @@ function nextDateOn(weekday: number): string {
   return `${day.getFullYear()}-${month}-${String(day.getDate()).padStart(2, "0")}`;
 }
 
-export function SeriesForm() {
+export function SeriesForm({ regions }: { regions: RegionOption[] }) {
   const [state, action, pending] = useActionState(createSeries, EMPTY_FORM_STATE);
   const [weekday, setWeekday] = useState(0);
   const [interval, setInterval] = useState("1");
@@ -25,6 +26,7 @@ export function SeriesForm() {
 
   return (
     <form action={action} className="flex flex-col gap-4">
+      <RegionSelect regions={regions} />
       <Input label="Name" name="name" placeholder="Sunday Service" maxLength={80} required />
       <div className="grid grid-cols-2 gap-4">
         <Select

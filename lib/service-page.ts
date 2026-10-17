@@ -12,7 +12,8 @@ import {
   formatChurchTime,
   upcomingCutoff,
 } from "@/lib/domain/time";
-import { getGoogleConnectionSummary } from "@/lib/google/connection";
+import { getConnectionForRegion } from "@/lib/google/connection";
+import { getManagedRegions, getMyRegions } from "@/lib/regions";
 import { driveFolderUrl } from "@/lib/google/links";
 import { describeHandoffs } from "@/lib/handoffs";
 import type { Profile } from "@/lib/supabase/database.types";
@@ -55,7 +56,8 @@ export async function loadServicePage(
   if (failed) throw new Error(`Could not load the service: ${failed.message}`);
   if (!service.data) return null;
 
-  const canManage = can(profile.role, "manage_services");
+  const regionId = service.data.region_id;
+  const canManage = (await getManagedRegions()).some((region) => region.id === regionId);
   const canUpload = can(profile.role, "upload_media");
   const isViewer = profile.role === "viewer";
 
@@ -105,7 +107,7 @@ export async function loadServicePage(
   let folderProblem: ServiceData["folderProblem"] = null;
   if (canManage && foldersIncomplete) {
     // Only admins can fix the Google connection, so only they are told.
-    const connection = await getGoogleConnectionSummary();
+    const connection = await getConnectionForRegion(regionId);
     folderProblem = {
       message:
         service.data.drive_error ??
@@ -119,6 +121,11 @@ export async function loadServicePage(
           : null,
     };
   }
+
+  const { data: regionMembers } = canManage
+    ? await supabase.from("region_members").select("profile_id").eq("region_id", regionId)
+    : { data: [] };
+  const regionPeople = new Set((regionMembers ?? []).map((row) => row.profile_id));
 
   // Who still owes what: not marked done and nothing uploaded by them.
   const outstanding = new Set(
@@ -181,8 +188,10 @@ export async function loadServicePage(
     hasOutstanding: outstanding.size > 0,
     assignOptions: canManage
       ? {
+          // People in this service's region (overall admins are in all).
           people: (people.data ?? [])
             .filter((person) => person.active && person.role !== "viewer")
+            .filter((person) => person.role === "admin" || regionPeople.has(person.id))
             .map((person) => ({ id: person.id, name: person.full_name })),
           dutyRoles: (dutyRoles.data ?? []).map((role) => ({ id: role.id, name: role.name })),
           categories: shown
@@ -221,7 +230,7 @@ export async function loadServiceList(): Promise<{
   const ids = services.map((service) => service.id);
   if (ids.length === 0) return { upcoming: [], past: [] };
 
-  const [assignments, uploadRecords, people, images] = await Promise.all([
+  const [assignments, uploadRecords, people, images, regions] = await Promise.all([
     loadAssignments(supabase, ids),
     loadUploadRecords(supabase, ids),
     supabase.from("profiles").select("id, full_name"),
@@ -235,7 +244,11 @@ export async function loadServiceList(): Promise<{
       .like("mime_type", "image/%")
       .order("completed_at", { ascending: false })
       .limit(600),
+    getMyRegions(),
   ]);
+  // Say whose service it is only when there is more than one region to see.
+  const regionName = new Map(regions.map((region) => [region.id, region.name]));
+  const showRegion = regions.length > 1;
 
   const personName = new Map(
     (people.data ?? []).map((person) => [person.id, person.full_name]),
@@ -274,6 +287,7 @@ export async function loadServiceList(): Promise<{
     assigned: assigned.get(service.id) ?? [],
     missing: missing.get(service.id) ?? 0,
     foldersFailed: service.drive_folder_status === "failed",
+    regionName: showRegion ? (regionName.get(service.region_id) ?? null) : null,
   });
 
   return {

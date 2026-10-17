@@ -78,4 +78,6 @@ export type ServiceSummary = {
   assigned: string[];
   missing: number;
   foldersFailed: boolean;
+  /** The service's region, when the person can see more than one. */
+  regionName?: string | null;
 };

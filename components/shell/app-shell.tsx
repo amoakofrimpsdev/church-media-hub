@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/ui/avatar";
+import { Logo } from "@/components/ui/logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   UploadButton,
   UploadProvider,
@@ -14,11 +16,16 @@ import {
 import { cn } from "@/lib/cn";
 import type { Role } from "@/lib/domain/permissions";
 import { ROLE_LABELS } from "@/lib/domain/roles";
-import { can } from "@/lib/domain/permissions";
 import { adminNavFor, isActive, MAIN_NAV, type NavLink } from "@/lib/nav";
 import { NavIcon } from "./nav-icon";
 
-export type ShellUser = { name: string; email: string; role: Role };
+export type ShellUser = {
+  name: string;
+  email: string;
+  role: Role;
+  /** Runs at least one region (always true for overall admins). */
+  manages?: boolean;
+};
 
 /**
  * The frame around every signed-in page.
@@ -56,7 +63,7 @@ export function AppShell({
     <UploadProvider
       services={upload.services}
       defaultServiceId={upload.defaultServiceId}
-      canCreateService={can(user.role, "manage_services")}
+      canCreateService={user.role === "admin" || user.manages === true}
       initiallyOpen={upload.initiallyOpen}
     >
       {frame}
@@ -75,7 +82,7 @@ function ShellFrame({
 }) {
   const realPath = usePathname();
   const pathname = currentPath ?? realPath;
-  const adminNav = adminNavFor(user.role);
+  const adminNav = adminNavFor(user.role, user.manages);
 
   return (
     <div className="flex min-h-dvh flex-1">
@@ -97,6 +104,7 @@ function ShellFrame({
           </nav>
         ) : null}
         <div className="mt-auto flex flex-col gap-2">
+          <ThemeToggle />
           <UserChip user={user} />
           <SignOutButton className="justify-start px-3" />
         </div>
@@ -120,13 +128,8 @@ function ShellFrame({
 
 function Brand() {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2 px-1 text-title text-ink">
-      <span
-        aria-hidden
-        className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-body-sm font-extrabold text-on-primary"
-      >
-        R
-      </span>
+    <Link href="/dashboard" className="flex items-center gap-2.5 px-1 text-title text-ink">
+      <Logo size={36} />
       RCW Media
     </Link>
   );
@@ -277,7 +280,7 @@ function MobileTabs({
           if (event.target === event.currentTarget) setOpen(false);
         }}
         aria-label="More"
-        className="m-0 mt-auto max-h-[85dvh] w-full max-w-none rounded-t-xl border-0 bg-surface p-0 text-ink backdrop:bg-black/60 desktop:hidden"
+        className="m-0 mt-auto max-h-[85dvh] w-full max-w-none rounded-t-xl border-0 bg-surface p-0 text-ink backdrop:bg-scrim/60 desktop:hidden"
       >
         <div className="flex flex-col gap-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="flex items-center justify-between">
@@ -318,6 +321,7 @@ function MobileTabs({
               </ul>
             </nav>
           ) : null}
+          <ThemeToggle />
           <SignOutButton className="justify-center bg-surface-soft" />
         </div>
       </dialog>

@@ -105,7 +105,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             linkLabel="All services"
           />
           {data.upcoming.length === 0 ? (
-            <div className="flex flex-col items-start gap-3 rounded-lg bg-surface p-6">
+            <div className="flex flex-col items-start gap-3 rounded-lg bg-surface shadow-card p-6">
               <p className="text-body-sm text-muted">
                 {data.canManage
                   ? "Nothing scheduled. Create the next service to set up its folders."
@@ -227,12 +227,7 @@ function FocusCard({
   canUpload: boolean;
 }) {
   return (
-    <section className="relative overflow-hidden rounded-xl bg-surface">
-      {/* A soft wash of the accent so the card reads as the hero of the page. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-[radial-gradient(120%_120%_at_0%_0%,rgb(157_140_255/0.22),transparent_55%)]"
-      />
+    <section className="theme-brand relative overflow-hidden rounded-xl shadow-float">
       <div className="relative grid gap-6 p-5 tablet:grid-cols-[1fr_auto] tablet:items-center tablet:p-8">
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
@@ -352,7 +347,7 @@ function CoverMosaic({
 
 function EmptyFocus({ canManage }: { canManage: boolean }) {
   return (
-    <section className="flex flex-col items-start gap-4 rounded-xl bg-surface p-6 tablet:p-8">
+    <section className="flex flex-col items-start gap-4 rounded-xl bg-surface shadow-card p-6 tablet:p-8">
       <div className="flex flex-col gap-1">
         <h2 className="text-title-lg text-ink">No services yet</h2>
         <p className="text-body-sm text-muted">
@@ -373,7 +368,7 @@ function EmptyFocus({ canManage }: { canManage: boolean }) {
 
 function MyTasks({ data }: { data: DashboardData }) {
   return (
-    <section className="flex flex-col gap-3 rounded-lg bg-surface p-5">
+    <section className="flex flex-col gap-3 rounded-lg bg-surface shadow-card p-5">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-title-lg text-ink">Your tasks</h2>
         <Badge tone="accent">{data.myTasks.length} open</Badge>
@@ -427,7 +422,7 @@ function MyTasks({ data }: { data: DashboardData }) {
 function Handoffs({ data }: { data: DashboardData }) {
   const shown = data.handoffs.slice(0, 5);
   return (
-    <section className="flex flex-col gap-3 rounded-lg bg-surface p-5">
+    <section className="flex flex-col gap-3 rounded-lg bg-surface shadow-card p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="text-title-lg text-ink">
@@ -458,7 +453,7 @@ function UpcomingCard({ service }: { service: UpcomingService }) {
   return (
     <Link
       href={`/services/${service.id}`}
-      className="group flex h-full flex-col gap-3 rounded-lg bg-surface p-4 transition-colors hover:bg-surface-soft"
+      className="group flex h-full flex-col gap-3 rounded-lg bg-surface shadow-card p-4 transition-colors hover:bg-surface-soft"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-0.5">
@@ -567,7 +562,7 @@ function AnalyticsSection({ analytics }: { analytics: Analytics }) {
       </div>
 
       <div className="grid gap-3 desktop:grid-cols-3">
-        <div className="flex flex-col gap-4 rounded-lg bg-surface p-5 desktop:col-span-2">
+        <div className="flex flex-col gap-4 rounded-lg bg-surface shadow-card p-5 desktop:col-span-2">
           <div className="flex flex-col gap-0.5">
             <h3 className="text-title text-ink">Uploads per week</h3>
             <p className="text-caption text-muted">
@@ -586,7 +581,7 @@ function AnalyticsSection({ analytics }: { analytics: Analytics }) {
           />
         </div>
 
-        <div className="flex flex-col gap-4 rounded-lg bg-surface p-5">
+        <div className="flex flex-col gap-4 rounded-lg bg-surface shadow-card p-5">
           <div className="flex flex-col gap-0.5">
             <h3 className="text-title text-ink">By category</h3>
             <p className="text-caption text-muted">Files in the last 8 weeks</p>
@@ -603,7 +598,7 @@ function AnalyticsSection({ analytics }: { analytics: Analytics }) {
       </div>
 
       <div className="grid gap-3 desktop:grid-cols-2">
-        <div className="flex flex-col gap-4 rounded-lg bg-surface p-5">
+        <div className="flex flex-col gap-4 rounded-lg bg-surface shadow-card p-5">
           <div className="flex flex-col gap-0.5">
             <h3 className="text-title text-ink">Who has been uploading</h3>
             <p className="text-caption text-muted">Files in the last 8 weeks</p>
@@ -619,7 +614,7 @@ function AnalyticsSection({ analytics }: { analytics: Analytics }) {
           />
         </div>
 
-        <div className="flex flex-col gap-4 rounded-lg bg-surface p-5">
+        <div className="flex flex-col gap-4 rounded-lg bg-surface shadow-card p-5">
           <div className="flex flex-col gap-0.5">
             <h3 className="text-title text-ink">Handoff record</h3>
             <p className="text-caption text-muted">
@@ -718,7 +713,7 @@ function StatTile({
           : { fill: "bg-danger", track: "bg-danger/20" };
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg bg-surface p-4 transition-colors hover:bg-surface-soft tablet:p-5">
+    <div className="flex flex-col gap-2 rounded-lg bg-surface shadow-card p-4 transition-colors hover:bg-surface-soft tablet:p-5">
       <span className="flex items-center gap-2 text-caption text-muted">
         {icon}
         {label}

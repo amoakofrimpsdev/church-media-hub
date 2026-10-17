@@ -26,7 +26,7 @@ export async function GET(
   const supabase = await createClient();
   const { data: upload } = await supabase
     .from("uploads")
-    .select("drive_file_id")
+    .select("drive_file_id, services!inner(drive_region_id)")
     .eq("id", uploadId)
     .eq("status", "complete")
     .maybeSingle();
@@ -35,5 +35,6 @@ export async function GET(
   return thumbnailResponse(
     upload.drive_file_id,
     parseThumbnailSize(request.nextUrl.searchParams.get("size")),
+    upload.services.drive_region_id,
   );
 }

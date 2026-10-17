@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ScheduleView } from "@/components/admin/schedule-view";
-import { requireAdmin } from "@/lib/auth";
+import { getAllRegions, requireManager } from "@/lib/regions";
 import { describeRecurrence, repeatPhrase, WEEKDAYS } from "@/lib/domain/recurrence";
 import { currentTime, formatChurchDate, formatChurchDateTime } from "@/lib/domain/time";
 import type { JobResult } from "@/lib/jobs/run";
@@ -24,16 +24,19 @@ function isJobResult(value: unknown): value is JobResult {
 }
 
 export default async function SchedulePage() {
-  await requireAdmin();
+  const { regions: managed } = await requireManager();
   const supabase = await createClient();
 
-  const [series, settings] = await Promise.all([
+  const [series, settings, allRegions] = await Promise.all([
     supabase.from("service_series").select("*").order("weekday").order("local_time"),
     createAdminClient()
       .from("app_settings")
       .select("last_job_run_at, last_job_result")
       .maybeSingle(),
+    getAllRegions(),
   ]);
+  const regionName = new Map(allRegions.map((region) => [region.id, region.name]));
+  const severalRegions = allRegions.filter((region) => region.is_active).length > 1;
   if (series.error) {
     throw new Error(`Could not load the schedule: ${series.error.message}`);
   }
@@ -58,7 +61,9 @@ export default async function SchedulePage() {
               ? `from ${formatChurchDate(`${item.anchor_date}T20:00:00Z`).replace(/, \d{4}$/, "")}`
               : null,
           active: item.active,
+          regionName: severalRegions ? (regionName.get(item.region_id) ?? null) : null,
         })),
+        regions: managed.map(({ id, name }) => ({ id, name })),
         jobs: {
           lastRanLabel: lastRunAt ? formatChurchDateTime(lastRunAt) : null,
           stale:

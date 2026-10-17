@@ -1,7 +1,7 @@
 import "server-only";
 
 import { shareStatus } from "@/lib/domain/share";
-import { getDriveSession } from "@/lib/google/connection";
+import { getDriveSession, type DriveAccount } from "@/lib/google/connection";
 import { grantAnyoneWithLink, removePermission } from "@/lib/google/drive";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -10,7 +10,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * account to give access to, so that one file is made viewable by anyone with
  * its Drive link. This records each time it happens and undoes it later.
  */
-export async function ensurePublicFile(shareId: string, driveFileId: string): Promise<void> {
+export async function ensurePublicFile(
+  shareId: string,
+  driveFileId: string,
+  account: DriveAccount,
+): Promise<void> {
   const admin = createAdminClient();
   const { data: existing } = await admin
     .from("share_file_grants")
@@ -19,12 +23,13 @@ export async function ensurePublicFile(shareId: string, driveFileId: string): Pr
     .maybeSingle();
   if (existing) return;
 
-  const { accessToken } = await getDriveSession();
+  const { accessToken } = await getDriveSession(account);
   const permissionId = await grantAnyoneWithLink(accessToken, driveFileId);
   await admin.from("share_file_grants").upsert({
     drive_file_id: driveFileId,
     permission_id: permissionId,
     share_link_id: shareId,
+    drive_region_id: account,
   });
 }
 
@@ -57,15 +62,15 @@ export async function closePublicFiles(shareId?: string): Promise<number> {
 
   const { data: grants } = await admin
     .from("share_file_grants")
-    .select("drive_file_id, permission_id")
+    .select("drive_file_id, permission_id, drive_region_id")
     .in("share_link_id", shareIds)
     .limit(200);
   if (!grants || grants.length === 0) return 0;
 
-  const { accessToken } = await getDriveSession();
   let closed = 0;
   for (const grant of grants) {
     try {
+      const { accessToken } = await getDriveSession(grant.drive_region_id);
       await removePermission(accessToken, grant.drive_file_id, grant.permission_id);
       await admin.from("share_file_grants").delete().eq("drive_file_id", grant.drive_file_id);
       closed += 1;

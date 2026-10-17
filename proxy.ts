@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import { SHARE_VISITOR_COOKIE, SHARE_VISITOR_COOKIE_OPTIONS } from "@/lib/share/visitor";
 
 // Reachable without signing in. Telegram and the scheduler authenticate with
 // their own secrets inside those routes.
@@ -31,6 +32,14 @@ function isPublic(pathname: string): boolean {
  * Level Security.
  */
 export async function proxy(request: NextRequest) {
+  // A share page's first visit from a browser: give it an anonymous visitor
+  // ID, on the request too so the page can count this very visit.
+  let newVisitor: string | null = null;
+  if (request.nextUrl.pathname.startsWith("/s/") && !request.cookies.has(SHARE_VISITOR_COOKIE)) {
+    newVisitor = crypto.randomUUID();
+    request.cookies.set(SHARE_VISITOR_COOKIE, newVisitor);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(supabaseUrl(), supabasePublishableKey(), {
@@ -87,6 +96,9 @@ export async function proxy(request: NextRequest) {
   }
   if (signedIn && pathname === "/login") {
     return redirectKeepingCookies(request, response, "/dashboard");
+  }
+  if (newVisitor) {
+    response.cookies.set(SHARE_VISITOR_COOKIE, newVisitor, SHARE_VISITOR_COOKIE_OPTIONS);
   }
   return response;
 }

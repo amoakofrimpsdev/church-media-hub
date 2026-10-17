@@ -3,46 +3,47 @@
 /*
  * Design tokens. Source of truth is docs/DESIGN.md.
  *
- * A dark, content-first interface: every surface is a shade of charcoal so the
- * photos supply the colour. Build UI from these utilities (bg-canvas,
- * bg-surface, text-ink, rounded-md…) rather than raw hex values or Tailwind's
- * default palette.
+ * Light and bright, in the blue of the RCW LA Media logo. Surfaces are white
+ * and pale blue-grey so the church's photos stand out; dark mode (below)
+ * swaps the same names for deep navy. Build UI from these utilities
+ * (bg-canvas, bg-surface, text-ink, rounded-md…) rather than raw hex values
+ * or Tailwind's default palette.
  */
 @theme {
-  /* Surfaces, darkest to lightest. Depth comes from stepping up this ladder. */
-  --color-canvas: #101012;
-  --color-surface: #18181b;
-  --color-surface-soft: #1f1f23;
-  --color-surface-strong: #2a2a30;
-  --color-surface-hover: #32323a;
-  --color-scrim: #000000;
+  /* Surfaces. The page is pale; cards are white and lifted by a soft shadow. */
+  --color-canvas: #f3f6fb;
+  --color-surface: #ffffff;
+  --color-surface-soft: #eef2f9;
+  --color-surface-strong: #e1e7f2;
+  --color-surface-hover: #d5ddeb;
+  --color-scrim: #0b1530;
 
-  /* Text */
-  --color-ink: #ffffff;
-  --color-ink-soft: #d4d4d8;
-  --color-muted: #a1a1aa;
-  --color-muted-soft: #71717a;
+  /* Text: deep navy rather than black, to sit with the blue. */
+  --color-ink: #0b1530;
+  --color-ink-soft: #2c3856;
+  --color-muted: #5a6582;
+  --color-muted-soft: #8691aa;
 
-  /* Lines */
-  --color-hairline: #2e2e35;
-  --color-hairline-soft: #232328;
-  --color-border-strong: #52525b;
+  /* Lines: cool silver, after the logo's chrome. */
+  --color-hairline: #dde3ee;
+  --color-hairline-soft: #e9edf5;
+  --color-border-strong: #b3bdd0;
 
-  /* Accent: the one colour that is ours. Used for the main action on a
-     screen, the active nav item and data marks. Dark text sits on it. */
-  --color-primary: #9d8cff;
-  --color-primary-active: #b3a6ff;
-  --color-primary-soft: rgb(157 140 255 / 0.16);
-  --color-primary-disabled: #4a4470;
-  --color-on-primary: #14121f;
+  /* Accent: the logo's royal blue. Used for the main action on a screen, the
+     active nav item and data marks. White text sits on it. */
+  --color-primary: #1d4ed8;
+  --color-primary-active: #1a3fb0;
+  --color-primary-soft: rgb(29 78 216 / 0.1);
+  --color-primary-disabled: #a8b9ea;
+  --color-on-primary: #ffffff;
 
   /* Status: always shown with a word, never colour alone. */
-  --color-success: #4ade80;
-  --color-success-soft: rgb(74 222 128 / 0.14);
-  --color-warning: #fbbf24;
-  --color-warning-soft: rgb(251 191 36 / 0.14);
-  --color-danger: #fb7185;
-  --color-danger-soft: rgb(251 113 133 / 0.14);
+  --color-success: #15803d;
+  --color-success-soft: rgb(22 163 74 / 0.12);
+  --color-warning: #b45309;
+  --color-warning-soft: rgb(245 158 11 / 0.16);
+  --color-danger: #be123c;
+  --color-danger-soft: rgb(225 29 72 / 0.1);
 
   /* Shape: pills for anything you press, soft corners for anything you read. */
   --radius-xs: 4px;
@@ -51,9 +52,10 @@
   --radius-lg: 16px;
   --radius-xl: 24px;
 
-  /* Elevation: heavy, soft shadows for things that float over content. */
-  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.5);
-  --shadow-card: 0 8px 16px rgb(0 0 0 / 0.3);
+  /* Elevation: soft, navy-tinted shadows. Cards get a light lift so white
+     sits clearly on the pale page; floating sheets a deeper one. */
+  --shadow-float: 0 16px 40px rgb(11 21 48 / 0.18);
+  --shadow-card: 0 1px 2px rgb(11 21 48 / 0.06), 0 6px 16px rgb(11 21 48 / 0.06);
 
   /* Type: bold or regular, little in between. */
   --font-sans: var(--font-figtree), -apple-system, system-ui, sans-serif;
@@ -145,7 +147,41 @@
 }
 
 html {
+  color-scheme: light;
+}
+
+/*
+ * Dark mode: deep navy, chosen under the profile menu. Utilities read these
+ * variables, so redefining them restyles the whole app.
+ */
+html[data-theme="dark"] {
   color-scheme: dark;
+  --color-canvas: #0a1022;
+  --color-surface: #111a33;
+  --color-surface-soft: #18223f;
+  --color-surface-strong: #212d50;
+  --color-surface-hover: #2a385f;
+  --color-scrim: #000000;
+  --color-ink: #ffffff;
+  --color-ink-soft: #d6ddef;
+  --color-muted: #9ba7c5;
+  --color-muted-soft: #6c7999;
+  --color-hairline: #25325a;
+  --color-hairline-soft: #1b2546;
+  --color-border-strong: #44527c;
+  --color-primary: #6b97ff;
+  --color-primary-active: #8cafff;
+  --color-primary-soft: rgb(107 151 255 / 0.18);
+  --color-primary-disabled: #2d3f72;
+  --color-on-primary: #061233;
+  --color-success: #4ade80;
+  --color-success-soft: rgb(74 222 128 / 0.14);
+  --color-warning: #fbbf24;
+  --color-warning-soft: rgb(251 191 36 / 0.14);
+  --color-danger: #fb7185;
+  --color-danger-soft: rgb(251 113 133 / 0.14);
+  --shadow-float: 0 16px 40px rgb(0 0 0 / 0.5);
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 0.04);
 }
 
 body {
@@ -160,9 +196,8 @@ body {
   outline-offset: 2px;
 }
 
-/* Native form controls and scrollbars follow the dark theme */
 ::selection {
-  background: rgb(157 140 255 / 0.35);
+  background: var(--color-primary-soft);
 }
 
 /* Horizontal rails scroll without a visible scrollbar */
@@ -203,4 +238,34 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/*
+ * The brand banner: royal blue, like the ring of the logo, with white text.
+ * Everything inside reads the same token names, so buttons, badges and
+ * progress rings restyle themselves. Same in light and dark mode.
+ */
+.theme-brand {
+  --color-ink: #ffffff;
+  --color-ink-soft: rgb(255 255 255 / 0.9);
+  --color-muted: rgb(255 255 255 / 0.78);
+  --color-muted-soft: rgb(255 255 255 / 0.6);
+  --color-primary: #ffffff;
+  --color-primary-active: #e6edff;
+  --color-primary-soft: rgb(255 255 255 / 0.18);
+  --color-on-primary: #1a3fb0;
+  --color-surface: rgb(255 255 255 / 0.12);
+  --color-surface-soft: rgb(255 255 255 / 0.12);
+  --color-surface-strong: rgb(255 255 255 / 0.2);
+  --color-surface-hover: rgb(255 255 255 / 0.26);
+  --color-hairline: rgb(255 255 255 / 0.22);
+  --color-border-strong: rgb(255 255 255 / 0.55);
+  --color-success: #86efac;
+  --color-warning: #fde68a;
+  --color-danger: #fecdd3;
+  color: var(--color-ink);
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgb(125 170 255 / 0.45), transparent 60%),
+    radial-gradient(70% 90% at 0% 100%, rgb(10 25 80 / 0.55), transparent 70%),
+    linear-gradient(135deg, #2457e6 0%, #1a3fb0 55%, #102a7a 100%);
 }
