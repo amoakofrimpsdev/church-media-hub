@@ -986,3 +986,17 @@ closed before it could report, but only once no file has finished for two
 minutes, so a batch still going up is not edited once per file. The message ID
 and the last text sent are kept in `notification_log`, so the sweep edits only
 when something changed, and two callers cannot both send or both edit.
+
+## Counting people, not page loads, on share links
+
+**Choice:** Each browser that opens a share link gets a random visitor ID in a
+cookie. Shared links shows how many different people opened a link, how many
+visits there were (a visitor counts again only after half an hour away) and how
+many files were downloaded.
+
+**Why:** The old count went up on every page load, so one pastor refreshing
+five times looked like five people. A random ID tells browsers apart without
+sign-in and without storing anything about the person. It cannot tell one
+person on two devices apart from two people, and someone who clears cookies
+counts again; for "did they look at it, and did they take anything", that is
+close enough.

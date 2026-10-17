@@ -378,6 +378,8 @@ export type Database = {
           created_at: string;
           last_viewed_at: string | null;
           view_count: number;
+          visitor_count: number;
+          download_count: number;
         };
         Insert: {
           token: string;
@@ -469,6 +471,10 @@ export type Database = {
         Returns: undefined;
       };
       record_share_view: {
+        Args: { p_share_id: string; p_visitor_id?: string | null };
+        Returns: undefined;
+      };
+      record_share_download: {
         Args: { p_share_id: string };
         Returns: undefined;
       };
