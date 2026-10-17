@@ -6,6 +6,7 @@ import {
   Home,
   Images,
   Link2,
+  MapPin,
   PackageCheck,
   Send,
   UserRound,
@@ -26,6 +27,7 @@ const ICONS: Record<NavIconName, React.ComponentType<LucideProps>> = {
   drive: HardDrive,
   telegram: Send,
   share: Link2,
+  regions: MapPin,
 };
 
 export function NavIcon({ name, ...props }: { name: NavIconName } & LucideProps) {

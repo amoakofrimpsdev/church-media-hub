@@ -417,11 +417,12 @@ export const previewPeople: PeopleData = {
 };
 
 export const previewSchedule: ScheduleData = {
+  regions: [{ id: "g1", name: "Main" }],
   series: [
-    { id: "r1", name: "Sunday Service", weekday: 0, timeLabel: "10:00 AM", repeatLabel: "Every Sunday", startLabel: null, active: true },
-    { id: "r2", name: "Women's Midweek", weekday: 3, timeLabel: "7:30 PM", repeatLabel: "Every other Wednesday", startLabel: "from Wed, Oct 15", active: true },
-    { id: "r4", name: "Men's Midweek", weekday: 3, timeLabel: "7:30 PM", repeatLabel: "Every other Wednesday", startLabel: "from Wed, Oct 22", active: true },
-    { id: "r3", name: "Youth Night", weekday: 5, timeLabel: "7:00 PM", repeatLabel: "Every Friday", startLabel: null, active: false },
+    { id: "r1", name: "Sunday Service", weekday: 0, timeLabel: "10:00 AM", repeatLabel: "Every Sunday", startLabel: null, active: true, regionName: null },
+    { id: "r2", name: "Women's Midweek", weekday: 3, timeLabel: "7:30 PM", repeatLabel: "Every other Wednesday", startLabel: "from Wed, Oct 15", active: true, regionName: null },
+    { id: "r4", name: "Men's Midweek", weekday: 3, timeLabel: "7:30 PM", repeatLabel: "Every other Wednesday", startLabel: "from Wed, Oct 22", active: true, regionName: null },
+    { id: "r3", name: "Youth Night", weekday: 5, timeLabel: "7:00 PM", repeatLabel: "Every Friday", startLabel: null, active: false, regionName: null },
   ],
   jobs: {
     lastRanLabel: "Wed, Oct 15, 12:15 PM",

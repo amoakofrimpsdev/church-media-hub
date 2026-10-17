@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/auth";
+import { requireManager } from "@/lib/regions";
 import { churchIsoDate } from "@/lib/domain/time";
 import { ServiceForm } from "./service-form";
 
@@ -15,8 +15,11 @@ function nextSunday(): string {
   return date.toISOString().slice(0, 10);
 }
 
-export default async function NewServicePage() {
-  await requireAdmin();
+export default async function NewServicePage({
+  searchParams,
+}: PageProps<"/services/new">) {
+  const { regions } = await requireManager();
+  const { region } = await searchParams;
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
@@ -31,7 +34,11 @@ export default async function NewServicePage() {
         </p>
       </div>
       <Card>
-        <ServiceForm defaultDate={nextSunday()} />
+        <ServiceForm
+          defaultDate={nextSunday()}
+          regions={regions.map(({ id, name }) => ({ id, name }))}
+          defaultRegion={typeof region === "string" ? region : undefined}
+        />
       </Card>
     </div>
   );

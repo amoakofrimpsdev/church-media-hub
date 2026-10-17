@@ -47,7 +47,9 @@ export async function GET(
   const supabase = await createClient();
   const { data: upload } = await supabase
     .from("uploads")
-    .select("drive_file_id, file_name, mime_type, size_bytes, service_id, category_id")
+    .select(
+      "drive_file_id, file_name, mime_type, size_bytes, service_id, category_id, services!inner(drive_region_id)",
+    )
     .eq("id", uploadId)
     .eq("status", "complete")
     .maybeSingle();
@@ -67,11 +69,11 @@ export async function GET(
         .maybeSingle();
       if (!folder) return plain(404, "File not found.");
 
-      await ensureFolderGrant(profile, folder.drive_folder_id);
+      await ensureFolderGrant(profile, folder.drive_folder_id, upload.services.drive_region_id);
       return NextResponse.redirect(driveFileViewUrl(upload.drive_file_id));
     }
 
-    const { accessToken } = await getDriveSession();
+    const { accessToken } = await getDriveSession(upload.services.drive_region_id);
     const file = await downloadFile(accessToken, upload.drive_file_id);
     return new Response(file.body, {
       headers: {
@@ -88,7 +90,7 @@ export async function GET(
     ) {
       return plain(
         503,
-        "The church Google account needs to be reconnected by an admin before files can be opened.",
+        "The Google account for this service needs to be reconnected by an admin before files can be opened.",
       );
     }
     console.error("Opening a file failed", error);

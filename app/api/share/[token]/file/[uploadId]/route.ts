@@ -37,14 +37,14 @@ export async function GET(
 
   try {
     if (upload.sizeBytes > DIRECT_DOWNLOAD_MAX_BYTES) {
-      await ensurePublicFile(share.id, upload.driveFileId);
+      await ensurePublicFile(share.id, upload.driveFileId, upload.driveAccount);
       const redirect = NextResponse.redirect(driveFileViewUrl(upload.driveFileId));
       // Keep the share link's address out of what Google is told.
       redirect.headers.set("Referrer-Policy", "no-referrer");
       return redirect;
     }
 
-    const { accessToken } = await getDriveSession();
+    const { accessToken } = await getDriveSession(upload.driveAccount);
     const file = await downloadFile(accessToken, upload.driveFileId);
     return new Response(file.body, {
       headers: {

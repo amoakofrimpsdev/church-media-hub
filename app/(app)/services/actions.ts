@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { requireAdmin, requireProfile } from "@/lib/auth";
+import { requireProfile } from "@/lib/auth";
+import { pickRegion, requireManager } from "@/lib/regions";
 import { churchLocalToUtc, serviceFolderName } from "@/lib/domain/time";
 import { getDriveSession } from "@/lib/google/connection";
 import { DriveError, moveToBin, renameFile } from "@/lib/google/drive";
@@ -24,7 +25,9 @@ export async function createService(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const admin = await requireAdmin();
+  const { profile: admin, regions } = await requireManager();
+  const region = pickRegion(regions, text(formData, "region"));
+  if (!region) return { error: "Choose which region the service is for." };
 
   const name = text(formData, "name");
   if (!name) return { error: "Give the service a name." };
@@ -36,7 +39,12 @@ export async function createService(
   const supabase = await createClient();
   const { data: service, error } = await supabase
     .from("services")
-    .insert({ name, starts_at: startsAt.toISOString(), created_by: admin.id })
+    .insert({
+      name,
+      starts_at: startsAt.toISOString(),
+      created_by: admin.id,
+      region_id: region.id,
+    })
     .select("id")
     .single();
   if (error || !service) {
@@ -60,7 +68,7 @@ export async function retryServiceFolders(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
 
   const serviceId = text(formData, "service_id");
   if (!serviceId) return { error: "Service not found." };
@@ -89,7 +97,7 @@ export async function updateService(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
 
   const serviceId = text(formData, "service_id");
   const name = text(formData, "name");
@@ -105,7 +113,7 @@ export async function updateService(
     .from("services")
     .update({ name, starts_at: startsAt.toISOString() })
     .eq("id", serviceId)
-    .select("drive_folder_id")
+    .select("drive_folder_id, drive_region_id")
     .maybeSingle();
   if (error || !service) return { error: GENERIC_ERROR };
 
@@ -114,7 +122,7 @@ export async function updateService(
   let folderRenamed = true;
   if (service.drive_folder_id) {
     try {
-      const { accessToken } = await getDriveSession();
+      const { accessToken } = await getDriveSession(service.drive_region_id);
       await renameFile(
         accessToken,
         service.drive_folder_id,
@@ -138,7 +146,7 @@ export async function deleteService(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
 
   const serviceId = text(formData, "service_id");
   if (!serviceId) return { error: "Service not found." };
@@ -147,7 +155,7 @@ export async function deleteService(
   const [{ data: service }, { count }] = await Promise.all([
     supabase
       .from("services")
-      .select("name, drive_folder_id, series_id, series_slot")
+      .select("name, drive_folder_id, drive_region_id, series_id, series_slot")
       .eq("id", serviceId)
       .maybeSingle(),
     supabase
@@ -171,7 +179,7 @@ export async function deleteService(
   // nothing pointing at them.
   if (service.drive_folder_id) {
     try {
-      const { accessToken } = await getDriveSession();
+      const { accessToken } = await getDriveSession(service.drive_region_id);
       await moveToBin(accessToken, service.drive_folder_id);
     } catch (binError) {
       if (!(binError instanceof DriveError && binError.status === 404)) {
@@ -212,7 +220,7 @@ export async function deleteUpload(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
 
   const uploadId = text(formData, "upload_id");
   if (!uploadId) return { error: "File not found." };
@@ -220,7 +228,7 @@ export async function deleteUpload(
   const supabase = await createClient();
   const { data: upload } = await supabase
     .from("uploads")
-    .select("id, drive_file_id")
+    .select("id, drive_file_id, services!inner(drive_region_id)")
     .eq("id", uploadId)
     .maybeSingle();
   if (!upload) return { error: "That file has already been deleted." };
@@ -229,7 +237,7 @@ export async function deleteUpload(
   // Drive cannot be reached, leave both alone.
   if (upload.drive_file_id) {
     try {
-      const { accessToken } = await getDriveSession();
+      const { accessToken } = await getDriveSession(upload.services.drive_region_id);
       await moveToBin(accessToken, upload.drive_file_id);
     } catch (binError) {
       // Already gone from Drive is fine: carry on and remove the record.
@@ -254,7 +262,7 @@ export async function addAssignment(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
 
   const serviceId = text(formData, "service_id");
   const profileId = text(formData, "profile_id");
@@ -304,7 +312,7 @@ export async function removeAssignment(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
 
   const assignmentId = text(formData, "assignment_id");
   const serviceId = text(formData, "service_id");
@@ -366,7 +374,7 @@ export async function sendReminderNow(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
   const serviceId = text(formData, "service_id");
   if (!serviceId) return { error: "Service not found." };
 

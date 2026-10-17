@@ -14,11 +14,16 @@ import {
 import { cn } from "@/lib/cn";
 import type { Role } from "@/lib/domain/permissions";
 import { ROLE_LABELS } from "@/lib/domain/roles";
-import { can } from "@/lib/domain/permissions";
 import { adminNavFor, isActive, MAIN_NAV, type NavLink } from "@/lib/nav";
 import { NavIcon } from "./nav-icon";
 
-export type ShellUser = { name: string; email: string; role: Role };
+export type ShellUser = {
+  name: string;
+  email: string;
+  role: Role;
+  /** Runs at least one region (always true for overall admins). */
+  manages?: boolean;
+};
 
 /**
  * The frame around every signed-in page.
@@ -56,7 +61,7 @@ export function AppShell({
     <UploadProvider
       services={upload.services}
       defaultServiceId={upload.defaultServiceId}
-      canCreateService={can(user.role, "manage_services")}
+      canCreateService={user.role === "admin" || user.manages === true}
       initiallyOpen={upload.initiallyOpen}
     >
       {frame}
@@ -75,7 +80,7 @@ function ShellFrame({
 }) {
   const realPath = usePathname();
   const pathname = currentPath ?? realPath;
-  const adminNav = adminNavFor(user.role);
+  const adminNav = adminNavFor(user.role, user.manages);
 
   return (
     <div className="flex min-h-dvh flex-1">

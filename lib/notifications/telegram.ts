@@ -38,16 +38,58 @@ import {
 const UNIQUE_VIOLATION = "23505";
 const SWEEP_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
-type Group = { chatId: number; linkedAt: Date };
+/**
+ * Where a region's messages go. `label` is the region's name when it shares
+ * the church's main group with other regions, so "Sunday Service" says whose.
+ */
+type Group = { chatId: number; linkedAt: Date; label: string | null };
 
-async function getGroup(): Promise<Group | null> {
+type Groups = {
+  forRegion: (regionId: string) => Group | null;
+  /** The earliest time any group was linked. */
+  earliestLinkedAt: Date;
+};
+
+/**
+ * Each region posts to its own Telegram group if it linked one, otherwise to
+ * the church's main group. Null when there is nowhere to post at all.
+ */
+async function loadGroups(): Promise<Groups | null> {
   if (!telegramBotToken()) return null;
-  const { data } = await createAdminClient()
-    .from("app_settings")
-    .select("telegram_chat_id, telegram_linked_at")
-    .maybeSingle();
-  if (!data?.telegram_chat_id || !data.telegram_linked_at) return null;
-  return { chatId: data.telegram_chat_id, linkedAt: new Date(data.telegram_linked_at) };
+  const admin = createAdminClient();
+  const [{ data: settings }, { data: regions }] = await Promise.all([
+    admin.from("app_settings").select("telegram_chat_id, telegram_linked_at").maybeSingle(),
+    admin.from("regions").select("id, name, is_active, telegram_chat_id, telegram_linked_at"),
+  ]);
+  const main =
+    settings?.telegram_chat_id && settings.telegram_linked_at
+      ? { chatId: settings.telegram_chat_id, linkedAt: new Date(settings.telegram_linked_at) }
+      : null;
+  const all = regions ?? [];
+  const own = new Map<string, Group>();
+  for (const region of all) {
+    if (region.telegram_chat_id && region.telegram_linked_at) {
+      own.set(region.id, {
+        chatId: region.telegram_chat_id,
+        linkedAt: new Date(region.telegram_linked_at),
+        label: null,
+      });
+    }
+  }
+  if (!main && own.size === 0) return null;
+
+  const names = new Map(all.map((region) => [region.id, region.name]));
+  // Regions still posting to the main group. With more than one, say whose.
+  const sharing = all.filter((region) => region.is_active && !own.has(region.id)).length;
+  const linkedTimes = [...own.values(), ...(main ? [main] : [])].map((group) =>
+    group.linkedAt.getTime(),
+  );
+  return {
+    forRegion: (regionId) =>
+      own.get(regionId) ??
+      (main ? { ...main, label: sharing > 1 ? (names.get(regionId) ?? null) : null } : null),
+    earliestLinkedAt: new Date(Math.min(...linkedTimes)),
+  };
 }
 
 /**
@@ -92,9 +134,12 @@ async function markHandled(kind: string, dedupeKey: string, serviceId: string): 
     );
 }
 
-function serviceInfo(service: { id: string; name: string; starts_at: string }) {
+function serviceInfo(
+  service: { id: string; name: string; starts_at: string },
+  group: Group,
+) {
   return {
-    name: service.name,
+    name: group.label ? `${service.name} (${group.label})` : service.name,
     date: formatChurchDate(service.starts_at),
     url: `${appUrl()}/services/${service.id}`,
   };
@@ -153,7 +198,7 @@ async function announceServiceDay(
     `service_day:${service.id}`,
     service.id,
     serviceDayMessage(
-      { ...serviceInfo(service), time: formatChurchTime(service.starts_at) },
+      { ...serviceInfo(service, group), time: formatChurchTime(service.starts_at) },
       covering,
     ),
   );
@@ -165,12 +210,16 @@ async function announceServiceDay(
  * so the group sees a single list that grows rather than a message per batch.
  */
 async function postUploadSummary(
-  group: Group,
+  groups: Groups,
   serviceId: string,
 ): Promise<"sent" | "updated" | "unchanged"> {
   const admin = createAdminClient();
   const [{ data: service }, { data: uploads }] = await Promise.all([
-    admin.from("services").select("id, name, starts_at").eq("id", serviceId).maybeSingle(),
+    admin
+      .from("services")
+      .select("id, name, starts_at, region_id")
+      .eq("id", serviceId)
+      .maybeSingle(),
     admin
       .from("uploads")
       .select("uploaded_by, category_id, mime_type, completed_at")
@@ -178,6 +227,8 @@ async function postUploadSummary(
       .eq("status", "complete"),
   ]);
   if (!service) return "unchanged";
+  const group = groups.forRegion(service.region_id);
+  if (!group) return "unchanged";
 
   const lines = summarizeUploads(
     (uploads ?? []).map((upload) => ({
@@ -198,7 +249,7 @@ async function postUploadSummary(
   const personName = new Map((people.data ?? []).map((row) => [row.id, row.full_name]));
 
   const html = uploadSummaryMessage(
-    serviceInfo(service),
+    serviceInfo(service, group),
     lines.map((line) => ({
       name: (line.uploadedBy && personName.get(line.uploadedBy)) || "Someone",
       categoryName: categoryName.get(line.categoryId) ?? "a category",
@@ -278,9 +329,9 @@ async function postUploadSummary(
  */
 export async function announceUploads(serviceIds: string[]): Promise<void> {
   try {
-    const group = await getGroup();
-    if (!group) return;
-    for (const serviceId of serviceIds) await postUploadSummary(group, serviceId);
+    const groups = await loadGroups();
+    if (!groups) return;
+    for (const serviceId of serviceIds) await postUploadSummary(groups, serviceId);
   } catch (error) {
     console.error("Posting the upload summary failed", error);
   }
@@ -363,18 +414,20 @@ export async function sendUploadReminder(
   key: string,
 ): Promise<ReminderOutcome> {
   try {
-    const group = await getGroup();
-    if (!group) return "not_linked";
+    const groups = await loadGroups();
+    if (!groups) return "not_linked";
 
     const { data: service } = await createAdminClient()
       .from("services")
-      .select("id, name, starts_at")
+      .select("id, name, starts_at, region_id")
       .eq("id", serviceId)
       .maybeSingle();
     if (!service) return "failed";
+    const group = groups.forRegion(service.region_id);
+    if (!group) return "not_linked";
 
     const message = uploadReminderMessage(
-      serviceInfo(service),
+      serviceInfo(service, group),
       await reminderTargets(serviceId),
     );
     if (!message) {
@@ -418,15 +471,15 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
     late: 0,
   };
   try {
-    const group = await getGroup();
-    if (!group) return result;
+    const groups = await loadGroups();
+    if (!groups) return result;
     result.linked = true;
 
     const admin = createAdminClient();
     const since = new Date(now.getTime() - SWEEP_WINDOW_MS).toISOString();
     const { data: services } = await admin
       .from("services")
-      .select("id, name, starts_at")
+      .select("id, name, starts_at, region_id")
       .gte("starts_at", since)
       .lte("starts_at", now.toISOString());
     const recent = services ?? [];
@@ -436,10 +489,12 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
     // hours either side of now, so this catches every one of them.
     const { data: todays } = await admin
       .from("services")
-      .select("id, name, starts_at, drive_folder_status")
+      .select("id, name, starts_at, region_id, drive_folder_status")
       .gte("starts_at", new Date(now.getTime() - 25 * 60 * 60 * 1000).toISOString())
       .lte("starts_at", new Date(now.getTime() + 25 * 60 * 60 * 1000).toISOString());
     for (const service of todays ?? []) {
+      const group = groups.forRegion(service.region_id);
+      if (!group) continue;
       const startsAt = new Date(service.starts_at);
       if (!isServiceDayPostDue(startsAt, now)) continue;
       // No upload link to give until its Drive folders exist.
@@ -453,7 +508,7 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
     // Services with uploads in the last day whose latest batch has gone quiet.
     // A batch still going up is left alone, so it is not edited once per file.
     const uploadsSince = new Date(
-      Math.max(now.getTime() - 24 * 60 * 60 * 1000, group.linkedAt.getTime()),
+      Math.max(now.getTime() - 24 * 60 * 60 * 1000, groups.earliestLinkedAt.getTime()),
     );
     const { data: finished } = await admin
       .from("uploads")
@@ -467,11 +522,13 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
     }
     for (const [serviceId, latest] of latestByService) {
       if (now.getTime() - latest < UPLOAD_SUMMARY_QUIET_MS) continue;
-      if ((await postUploadSummary(group, serviceId)) !== "unchanged") result.uploadSummaries += 1;
+      if ((await postUploadSummary(groups, serviceId)) !== "unchanged") result.uploadSummaries += 1;
     }
 
     // ── Upload reminders ──
     for (const service of recent) {
+      const group = groups.forRegion(service.region_id);
+      if (!group) continue;
       const startsAt = new Date(service.starts_at);
       const stage = dueReminderStage(startsAt, now);
       if (stage === 0 || reminderDueAt(startsAt, stage) < group.linkedAt) continue;
@@ -502,7 +559,7 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
     const [handoffServices, categories, teams, members] = await Promise.all([
       admin
         .from("services")
-        .select("id, name, starts_at")
+        .select("id, name, starts_at, region_id")
         .in("id", unique(open.map((handoff) => handoff.service_id))),
       admin.from("categories").select("id, name, slug"),
       admin.from("teams").select("id, name"),
@@ -512,24 +569,33 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
         .in("team_id", unique(open.map((handoff) => handoff.team_id))),
     ]);
     const memberIds = unique((members.data ?? []).map((member) => member.profile_id));
-    const { data: memberProfiles } =
+    const [{ data: memberProfiles }, { data: memberRegions }] =
       memberIds.length > 0
-        ? await admin
-            .from("profiles")
-            .select("id, full_name, telegram_user_id, active")
-            .in("id", memberIds)
-        : { data: [] };
+        ? await Promise.all([
+            admin
+              .from("profiles")
+              .select("id, full_name, telegram_user_id, active, role")
+              .in("id", memberIds),
+            admin.from("region_members").select("region_id, profile_id").in("profile_id", memberIds),
+          ])
+        : [{ data: [] }, { data: [] }];
+    const inRegion = new Set(
+      (memberRegions ?? []).map((row) => `${row.region_id}:${row.profile_id}`),
+    );
 
     const serviceById = new Map((handoffServices.data ?? []).map((row) => [row.id, row]));
     const categoryById = new Map((categories.data ?? []).map((row) => [row.id, row]));
     const teamById = new Map((teams.data ?? []).map((row) => [row.id, row]));
     const profileById = new Map((memberProfiles ?? []).map((row) => [row.id, row]));
-    const teamMembers = (teamId: string): Recipient[] =>
+    // Teams are shared by every region; tag only the members in this one.
+    const teamMembers = (teamId: string, regionId: string): Recipient[] =>
       (members.data ?? [])
         .filter((member) => member.team_id === teamId)
         .flatMap((member) => {
           const profile = profileById.get(member.profile_id);
-          return profile?.active
+          const here =
+            profile?.role === "admin" || inRegion.has(`${regionId}:${member.profile_id}`);
+          return profile?.active && here
             ? [{ name: profile.full_name, telegramUserId: profile.telegram_user_id }]
             : [];
         });
@@ -539,14 +605,16 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
       const category = categoryById.get(handoff.category_id);
       const team = teamById.get(handoff.team_id);
       if (!service || !category || !team) continue;
+      const group = groups.forRegion(service.region_id);
+      if (!group) continue;
 
       const info = {
         categoryName: category.name,
         teamName: team.name,
-        service: serviceInfo(service),
+        service: serviceInfo(service, group),
         due: formatChurchDateTime(handoff.due_at),
         albumUrl: `${appUrl()}/services/${service.id}/${category.slug}`,
-        teamMembers: teamMembers(team.id),
+        teamMembers: teamMembers(team.id, service.region_id),
       };
       const dueAt = new Date(handoff.due_at);
       const readyAt = handoff.ready_at ? new Date(handoff.ready_at) : null;

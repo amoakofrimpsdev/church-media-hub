@@ -4,10 +4,19 @@ import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
+import { RegionSelect, type RegionOption } from "@/components/ui/region-select";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import { createService } from "../actions";
 
-export function ServiceForm({ defaultDate }: { defaultDate: string }) {
+export function ServiceForm({
+  defaultDate,
+  regions,
+  defaultRegion,
+}: {
+  defaultDate: string;
+  regions: RegionOption[];
+  defaultRegion?: string;
+}) {
   const [state, action, pending] = useActionState(
     createService,
     EMPTY_FORM_STATE,
@@ -15,6 +24,7 @@ export function ServiceForm({ defaultDate }: { defaultDate: string }) {
 
   return (
     <form action={action} className="flex flex-col gap-4">
+      <RegionSelect regions={regions} defaultValue={defaultRegion} />
       <Input
         label="Name"
         name="name"

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
+import { pickRegion, requireManager } from "@/lib/regions";
 import { WEEKDAYS } from "@/lib/domain/recurrence";
 import type { FormState } from "@/lib/form-state";
 import { runScheduledJobs } from "@/lib/jobs/run";
@@ -18,7 +18,9 @@ export async function createSeries(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const admin = await requireAdmin();
+  const { profile: admin, regions } = await requireManager();
+  const region = pickRegion(regions, field(formData, "region"));
+  if (!region) return { error: "Choose which region it is for." };
 
   const name = field(formData, "name");
   if (!name) return { error: "Give the service a name." };
@@ -59,6 +61,7 @@ export async function createSeries(
     interval_weeks: intervalWeeks,
     anchor_date: anchorDate,
     created_by: admin.id,
+    region_id: region.id,
   });
   if (error) return { error: GENERIC_ERROR };
 
@@ -72,7 +75,7 @@ export async function updateSeries(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  await requireAdmin();
+  await requireManager();
 
   const id = field(formData, "series_id");
   const intent = field(formData, "intent");
@@ -99,7 +102,7 @@ export async function runJobsNow(
 ): Promise<FormState> {
   void _previous;
   void _formData;
-  await requireAdmin();
+  await requireManager();
 
   const result = await runScheduledJobs();
   revalidatePath("/admin/schedule");

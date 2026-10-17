@@ -41,6 +41,8 @@ export type SharedUpload = {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
+  /** Which Google account holds it. */
+  driveAccount: string | null;
 };
 
 /** One finished upload, only if this link covers it. */
@@ -50,15 +52,17 @@ export async function findSharedUpload(
 ): Promise<SharedUpload | null> {
   const { data } = await createAdminClient()
     .from("uploads")
-    .select("id, drive_file_id, file_name, mime_type, size_bytes, service_id, category_id")
+    .select(
+      "id, drive_file_id, file_name, mime_type, size_bytes, service_id, category_id, services!inner(region_id, drive_region_id)",
+    )
     .eq("id", uploadId)
     .eq("status", "complete")
     .maybeSingle();
   if (!data?.drive_file_id) return null;
 
   const covered = uploadInScope(
-    { serviceId: data.service_id, categoryId: data.category_id },
-    { serviceId: share.service_id, categoryId: share.category_id },
+    { serviceId: data.service_id, categoryId: data.category_id, regionId: data.services.region_id },
+    { serviceId: share.service_id, categoryId: share.category_id, regionId: share.region_id },
   );
   if (!covered) return null;
 
@@ -68,5 +72,6 @@ export async function findSharedUpload(
     fileName: data.file_name,
     mimeType: data.mime_type,
     sizeBytes: data.size_bytes,
+    driveAccount: data.services.drive_region_id,
   };
 }

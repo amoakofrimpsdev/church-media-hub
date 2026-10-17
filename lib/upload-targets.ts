@@ -5,6 +5,7 @@ import { pickFocusService, relativeDay } from "@/lib/domain/analytics";
 import { can } from "@/lib/domain/permissions";
 import { currentTime, formatChurchDate, recentCutoff } from "@/lib/domain/time";
 import type { Profile } from "@/lib/supabase/database.types";
+import { getMyRegions } from "@/lib/regions";
 import { createClient } from "@/lib/supabase/server";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -27,7 +28,7 @@ export async function loadUploadTargets(profile: Profile): Promise<UploadTargets
   const now = currentTime();
   const { data: services } = await supabase
     .from("services")
-    .select("id, name, starts_at")
+    .select("id, name, starts_at, region_id")
     .gte("starts_at", recentCutoff(now))
     .lte("starts_at", new Date(now.getTime() + 7 * DAY_MS).toISOString())
     .order("starts_at", { ascending: false })
@@ -36,7 +37,7 @@ export async function loadUploadTargets(profile: Profile): Promise<UploadTargets
     return { services: [], defaultServiceId: null };
   }
 
-  const [folders, categories] = await Promise.all([
+  const [folders, categories, regions] = await Promise.all([
     supabase
       .from("service_folders")
       .select("service_id, category_id")
@@ -49,7 +50,11 @@ export async function loadUploadTargets(profile: Profile): Promise<UploadTargets
       .select("id, name")
       .eq("is_active", true)
       .order("sort_order"),
+    getMyRegions(),
   ]);
+  // With services from several regions in the list, say whose each one is.
+  const regionName = new Map(regions.map((region) => [region.id, region.name]));
+  const showRegion = new Set(services.map((service) => service.region_id)).size > 1;
   const withFolder = new Set(
     (folders.data ?? []).map((row) => `${row.service_id}:${row.category_id}`),
   );
@@ -59,7 +64,12 @@ export async function loadUploadTargets(profile: Profile): Promise<UploadTargets
       id: service.id,
       name: service.name,
       startsAt: service.starts_at,
-      dateLine: formatChurchDate(service.starts_at).replace(/, \d{4}$/, ""),
+      dateLine: [
+        showRegion ? regionName.get(service.region_id) : null,
+        formatChurchDate(service.starts_at).replace(/, \d{4}$/, ""),
+      ]
+        .filter(Boolean)
+        .join(" · "),
       relative: relativeDay(service.starts_at, now),
       categories: (categories.data ?? []).filter((category) =>
         withFolder.has(`${service.id}:${category.id}`),

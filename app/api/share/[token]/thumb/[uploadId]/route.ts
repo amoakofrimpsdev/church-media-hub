@@ -27,5 +27,6 @@ export async function GET(
   return thumbnailResponse(
     upload.driveFileId,
     parseThumbnailSize(request.nextUrl.searchParams.get("size")),
+    upload.driveAccount,
   );
 }

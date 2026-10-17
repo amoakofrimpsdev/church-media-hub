@@ -1,5 +1,6 @@
 import { after, NextResponse, type NextRequest } from "next/server";
 import {
+  driveAccountForService,
   getDriveSession,
   markGoogleConnectionExpired,
 } from "@/lib/google/connection";
@@ -64,8 +65,9 @@ export async function POST(request: NextRequest) {
     return uploadError(409, "folders_not_ready", "This category has no Drive folder.");
   }
 
+  const account = await driveAccountForService(upload.service_id);
   try {
-    const { accessToken } = await getDriveSession();
+    const { accessToken } = await getDriveSession(account);
     const file = await getFile(accessToken, driveFileId);
     if (
       !file ||
@@ -99,7 +101,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof GoogleConnectionExpiredError) {
-      await markGoogleConnectionExpired("Google rejected the saved sign-in.");
+      await markGoogleConnectionExpired("Google rejected the saved sign-in.", account);
     }
     return uploadFailure(error);
   }

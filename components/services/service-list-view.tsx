@@ -82,6 +82,9 @@ function ServiceGrid({ services }: { services: ServiceSummary[] }) {
               </span>
             </span>
             <span className="flex flex-col gap-0.5">
+              {service.regionName ? (
+                <span className="text-label text-primary uppercase">{service.regionName}</span>
+              ) : null}
               <span className="truncate text-title text-ink">{service.name}</span>
               <span className="text-caption text-muted">{service.dateLine}</span>
             </span>

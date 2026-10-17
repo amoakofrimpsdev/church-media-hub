@@ -49,16 +49,22 @@ export type Database = {
           invited_by: string | null;
           created_at: string;
           accepted_at: string | null;
+          region_id: string | null;
+          region_admin: boolean;
         };
         Insert: {
           email: string;
           role?: AppRole;
           team_id?: string | null;
           invited_by?: string | null;
+          region_id?: string | null;
+          region_admin?: boolean;
         };
         Update: {
           role?: AppRole;
           team_id?: string | null;
+          region_id?: string | null;
+          region_admin?: boolean;
         };
         Relationships: [];
       };
@@ -126,6 +132,8 @@ export type Database = {
           created_at: string;
           series_id: string | null;
           series_slot: string | null;
+          region_id: string;
+          drive_region_id: string | null;
         };
         Insert: {
           name: string;
@@ -133,10 +141,13 @@ export type Database = {
           created_by?: string | null;
           series_id?: string | null;
           series_slot?: string | null;
+          region_id?: string;
         };
         Update: {
           name?: string;
           starts_at?: string;
+          region_id?: string;
+          drive_region_id?: string | null;
           drive_folder_id?: string | null;
           drive_folder_status?: DriveFolderStatus;
           drive_error?: string | null;
@@ -154,6 +165,7 @@ export type Database = {
           created_at: string;
           interval_weeks: number;
           anchor_date: string | null;
+          region_id: string;
         };
         Insert: {
           name: string;
@@ -162,6 +174,7 @@ export type Database = {
           created_by?: string | null;
           interval_weeks?: number;
           anchor_date?: string | null;
+          region_id?: string;
         };
         Update: { name?: string; active?: boolean };
         Relationships: [];
@@ -326,6 +339,7 @@ export type Database = {
           expires_at: string;
           used_at: string | null;
           created_at: string;
+          region_id: string | null;
         };
         Insert: {
           token_hash: string;
@@ -378,10 +392,12 @@ export type Database = {
           created_at: string;
           last_viewed_at: string | null;
           view_count: number;
+          region_id: string | null;
         };
         Insert: {
           token: string;
           label: string;
+          region_id?: string | null;
           service_id?: string | null;
           category_id?: string | null;
           allow_download?: boolean;
@@ -398,11 +414,13 @@ export type Database = {
           permission_id: string;
           share_link_id: string;
           created_at: string;
+          drive_region_id: string | null;
         };
         Insert: {
           drive_file_id: string;
           permission_id: string;
           share_link_id: string;
+          drive_region_id?: string | null;
         };
         Update: never;
         Relationships: [];
@@ -415,16 +433,83 @@ export type Database = {
           permission_id: string;
           created_at: string;
           revoke_requested_at: string | null;
+          drive_region_id: string | null;
         };
         Insert: {
           profile_id: string;
           drive_folder_id: string;
           permission_id: string;
           revoke_requested_at?: string | null;
+          drive_region_id?: string | null;
         };
         Update: {
           permission_id?: string;
           revoke_requested_at?: string | null;
+        };
+        Relationships: [];
+      };
+      regions: {
+        // Signed-in users can read only id, name, sort_order, is_active and
+        // created_at. The rest is read with the secret key.
+        Row: {
+          id: string;
+          name: string;
+          sort_order: number;
+          is_active: boolean;
+          church_folder_id: string | null;
+          telegram_chat_id: number | null;
+          telegram_chat_title: string | null;
+          telegram_linked_at: string | null;
+          created_at: string;
+        };
+        Insert: { name: string; sort_order?: number };
+        Update: {
+          name?: string;
+          sort_order?: number;
+          is_active?: boolean;
+          church_folder_id?: string | null;
+          telegram_chat_id?: number | null;
+          telegram_chat_title?: string | null;
+          telegram_linked_at?: string | null;
+        };
+        Relationships: [];
+      };
+      region_members: {
+        Row: {
+          region_id: string;
+          profile_id: string;
+          is_region_admin: boolean;
+          added_at: string;
+        };
+        Insert: { region_id: string; profile_id: string; is_region_admin?: boolean };
+        Update: { is_region_admin?: boolean };
+        Relationships: [];
+      };
+      // Readable only with the secret key. See lib/google/connection.ts.
+      region_google_connections: {
+        Row: {
+          region_id: string;
+          account_email: string;
+          refresh_token_encrypted: string;
+          root_folder_id: string;
+          status: GoogleConnectionStatus;
+          last_error: string | null;
+          connected_by: string | null;
+          connected_at: string;
+        };
+        Insert: {
+          region_id: string;
+          account_email: string;
+          refresh_token_encrypted: string;
+          root_folder_id: string;
+          status?: GoogleConnectionStatus;
+          last_error?: string | null;
+          connected_by?: string | null;
+          connected_at?: string;
+        };
+        Update: {
+          status?: GoogleConnectionStatus;
+          last_error?: string | null;
         };
         Relationships: [];
       };

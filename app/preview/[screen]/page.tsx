@@ -149,7 +149,7 @@ export default async function PreviewPage({
     case "series-form":
       return (
         <main className="mx-auto max-w-lg p-6">
-          <SeriesForm />
+          <SeriesForm regions={[{ id: "g1", name: "Metro Heights" }, { id: "g2", name: "OC" }]} />
         </main>
       );
     case "schedule":

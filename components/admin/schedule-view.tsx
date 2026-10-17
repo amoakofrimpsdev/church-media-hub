@@ -21,10 +21,14 @@ export type SeriesCard = {
   /** For a series that is not weekly: "Starting Oct 15". */
   startLabel: string | null;
   active: boolean;
+  /** Shown when there is more than one region. */
+  regionName: string | null;
 };
 
 export type ScheduleData = {
   series: SeriesCard[];
+  /** Regions a new repeating service can be added to. */
+  regions: { id: string; name: string }[];
   jobs: {
     /** "Mon, Oct 13, 7:15 AM", or null if the jobs have never run. */
     lastRanLabel: string | null;
@@ -120,6 +124,11 @@ export function ScheduleView({ data }: { data: ScheduleData }) {
                         {series.repeatLabel}
                         {series.startLabel ? ` · ${series.startLabel}` : ""}
                       </span>
+                      {series.regionName ? (
+                        <span className="text-caption font-bold text-primary">
+                          {series.regionName}
+                        </span>
+                      ) : null}
                     </span>
                     {series.active ? null : <Badge className="self-start">Paused</Badge>}
                   </>
@@ -165,7 +174,7 @@ export function ScheduleView({ data }: { data: ScheduleData }) {
                 </>
               }
             >
-              <SeriesForm />
+              <SeriesForm regions={data.regions} />
             </Modal>
           </li>
         </ul>

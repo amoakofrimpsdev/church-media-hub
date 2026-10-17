@@ -7,6 +7,8 @@
 export type ShareScope = {
   serviceId: string | null;
   categoryId: string | null;
+  /** Limits the link to one region. Absent or null: every region. */
+  regionId?: string | null;
 };
 
 export type ShareState = {
@@ -26,9 +28,10 @@ export function shareStatus(share: ShareState, now: Date): ShareStatus {
 
 /** Whether a particular upload is covered by a link. */
 export function uploadInScope(
-  upload: { serviceId: string; categoryId: string },
+  upload: { serviceId: string; categoryId: string; regionId?: string },
   scope: ShareScope,
 ): boolean {
+  if (scope.regionId && upload.regionId !== scope.regionId) return false;
   if (scope.serviceId && upload.serviceId !== scope.serviceId) return false;
   if (scope.categoryId && upload.categoryId !== scope.categoryId) return false;
   return true;

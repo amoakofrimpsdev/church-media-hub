@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { ThumbnailSize } from "@/lib/domain/gallery";
-import { getDriveSession } from "@/lib/google/connection";
+import { getDriveSession, type DriveAccount } from "@/lib/google/connection";
 import { getThumbnailLink, sizedThumbnailLink } from "@/lib/google/drive";
 
 // Google's thumbnail links stay valid for a while. Remembering them briefly
@@ -11,11 +11,14 @@ const LINK_TTL_MS = 10 * 60 * 1000;
 const LINK_CACHE_MAX = 1000;
 const linkCache = new Map<string, { link: string; expiresAt: number }>();
 
-async function thumbnailLinkFor(driveFileId: string): Promise<string | null> {
+async function thumbnailLinkFor(
+  driveFileId: string,
+  account: DriveAccount,
+): Promise<string | null> {
   const cached = linkCache.get(driveFileId);
   if (cached && cached.expiresAt > Date.now()) return cached.link;
 
-  const { accessToken } = await getDriveSession();
+  const { accessToken } = await getDriveSession(account);
   const link = await getThumbnailLink(accessToken, driveFileId);
   if (link) {
     if (linkCache.size >= LINK_CACHE_MAX) linkCache.clear();
@@ -34,12 +37,13 @@ async function thumbnailLinkFor(driveFileId: string): Promise<string | null> {
 export async function thumbnailResponse(
   driveFileId: string,
   size: ThumbnailSize,
+  account: DriveAccount,
 ): Promise<Response> {
   const notFound = () =>
     new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
 
   try {
-    const link = await thumbnailLinkFor(driveFileId);
+    const link = await thumbnailLinkFor(driveFileId, account);
     // Google takes a little while to make previews for new uploads.
     if (!link) return notFound();
 
