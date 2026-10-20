@@ -1,13 +1,15 @@
 "use client";
 
-import { Play } from "lucide-react";
+import { CheckCircle2, Circle, Download, ListChecks, Play, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { deleteUpload } from "@/app/(app)/services/actions";
 import { ActionButton } from "@/components/ui/action-button";
-import { buttonClasses } from "@/components/ui/button";
-import { DIRECT_DOWNLOAD_MAX_BYTES } from "@/lib/domain/gallery";
+import { Button, buttonClasses } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
+import { DIRECT_DOWNLOAD_MAX_BYTES, planDownload } from "@/lib/domain/gallery";
 import { formatBytes } from "@/lib/domain/uploads";
 import type { GalleryItem } from "./types";
+import { downloadAsZip, zipFileName } from "./zip-download";
 
 const thumbUrl = (item: GalleryItem, size: 400 | 1600) =>
   item.urls
@@ -25,14 +27,32 @@ export function GalleryGrid({
   items,
   canDelete = false,
   shared = false,
+  downloadTitle = "Photos",
 }: {
   items: GalleryItem[];
   /** Admins get a Delete button in the full-size view. */
   canDelete?: boolean;
   /** True on a share link, where the visitor has no account. */
   shared?: boolean;
+  /** Names the zip from "Download selected": "Baptism - Sunday Service". */
+  downloadTitle?: string;
 }) {
   const [requestedIndex, setOpenIndex] = useState<number | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const canSelect = items.some((item) => downloadUrl(item) !== null);
+
+  const toggle = (id: string) =>
+    setSelected((previous) => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
   // After a delete the list is shorter. If the open position no longer exists
   // (it was the last one), close the viewer.
   const openIndex =
@@ -40,13 +60,36 @@ export function GalleryGrid({
 
   return (
     <>
+      {canSelect && !selecting ? (
+        <div className="flex justify-end">
+          <Button variant="ghost" size="sm" onClick={() => setSelecting(true)}>
+            <ListChecks aria-hidden size={16} />
+            Select to download
+          </Button>
+        </div>
+      ) : null}
       <ul className="grid grid-cols-3 gap-1.5 tablet:grid-cols-4 tablet:gap-2 desktop:grid-cols-5">
         {items.map((item, index) => (
           <li key={item.id}>
-            <Tile item={item} onOpen={() => setOpenIndex(index)} />
+            <Tile
+              item={item}
+              onOpen={() => (selecting ? toggle(item.id) : setOpenIndex(index))}
+              selecting={selecting}
+              selected={selected.has(item.id)}
+            />
           </li>
         ))}
       </ul>
+      {selecting ? (
+        <SelectionBar
+          items={items}
+          selected={selected}
+          onSelectAll={() => setSelected(new Set(items.map((item) => item.id)))}
+          onClear={() => setSelected(new Set())}
+          onDone={stopSelecting}
+          zipName={zipFileName(downloadTitle)}
+        />
+      ) : null}
       {openIndex !== null ? (
         <Lightbox
           items={items}
@@ -61,16 +104,44 @@ export function GalleryGrid({
   );
 }
 
-function Tile({ item, onOpen }: { item: GalleryItem; onOpen: () => void }) {
+function Tile({
+  item,
+  onOpen,
+  selecting,
+  selected,
+}: {
+  item: GalleryItem;
+  onOpen: () => void;
+  selecting: boolean;
+  selected: boolean;
+}) {
   const [failed, setFailed] = useState(false);
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      aria-label={`Open ${item.fileName}`}
-      className="group relative block aspect-square w-full overflow-hidden rounded-sm bg-surface-strong tablet:rounded-md"
+      aria-label={selecting ? `Select ${item.fileName}` : `Open ${item.fileName}`}
+      aria-pressed={selecting ? selected : undefined}
+      className={cn(
+        "group relative block aspect-square w-full overflow-hidden rounded-sm bg-surface-strong tablet:rounded-md",
+        selected && "ring-4 ring-primary ring-inset",
+      )}
     >
+      {selecting ? (
+        <span
+          className={cn(
+            "absolute top-1.5 left-1.5 z-10 flex h-7 w-7 items-center justify-center rounded-full",
+            selected ? "bg-primary text-on-primary" : "bg-black/40 text-white",
+          )}
+        >
+          {selected ? (
+            <CheckCircle2 aria-hidden size={20} />
+          ) : (
+            <Circle aria-hidden size={20} />
+          )}
+        </span>
+      ) : null}
       {failed ? (
         <span className="flex h-full items-center justify-center p-2 text-center text-caption break-all text-muted">
           {item.fileName}
@@ -95,6 +166,108 @@ function Tile({ item, onOpen }: { item: GalleryItem; onOpen: () => void }) {
         </span>
       ) : null}
     </button>
+  );
+}
+
+/**
+ * The bar at the bottom while choosing photos: how many, select all, and
+ * download them as one zip.
+ */
+function SelectionBar({
+  items,
+  selected,
+  onSelectAll,
+  onClear,
+  onDone,
+  zipName,
+}: {
+  items: GalleryItem[];
+  selected: Set<string>;
+  onSelectAll: () => void;
+  onClear: () => void;
+  onDone: () => void;
+  zipName: string;
+}) {
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const chosen = items.filter((item) => selected.has(item.id));
+  const plan = planDownload(
+    chosen.map((item) => ({
+      id: item.id,
+      sizeBytes: item.sizeBytes,
+      canDownload: downloadUrl(item) !== null,
+    })),
+  );
+  const notes = [
+    plan.tooLarge > 0
+      ? `${plan.tooLarge} large ${plan.tooLarge === 1 ? "video opens" : "videos open"} in Google Drive instead`
+      : null,
+    plan.notAllowed > 0 ? `${plan.notAllowed} cannot be downloaded` : null,
+    plan.overLimit ? `Over ${formatBytes(1024 * 1024 * 1024)}: choose fewer` : null,
+  ].filter(Boolean);
+
+  async function download() {
+    const files = items
+      .filter((item) => plan.include.includes(item.id))
+      .map((item) => ({ url: downloadUrl(item) as string, fileName: item.fileName }));
+    setMessage(null);
+    setProgress({ done: 0, total: files.length });
+    const { failed } = await downloadAsZip(files, zipName, (done) =>
+      setProgress({ done, total: files.length }),
+    );
+    setProgress(null);
+    if (failed === files.length) setMessage("Could not download them. Check your connection and try again.");
+    else if (failed > 0) setMessage(`Saved, but ${failed} could not be downloaded. Try those again.`);
+    else onDone();
+  }
+
+  const busy = progress !== null;
+  return (
+    <div
+      role="region"
+      aria-label="Selected photos"
+      className="fixed inset-x-3 bottom-20 z-30 mx-auto flex max-w-2xl animate-rise flex-col gap-2 rounded-xl bg-surface p-3 shadow-float desktop:bottom-6"
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="mr-auto text-body-sm font-bold text-ink" aria-live="polite">
+          {busy
+            ? `Preparing ${progress.done} of ${progress.total}…`
+            : `${selected.size} selected${plan.totalBytes > 0 ? ` · ${formatBytes(plan.totalBytes)}` : ""}`}
+        </span>
+        {!busy ? (
+          selected.size === items.length ? (
+            <Button variant="ghost" size="sm" onClick={onClear}>
+              Clear
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={onSelectAll}>
+              Select all
+            </Button>
+          )
+        ) : null}
+        <Button
+          size="sm"
+          onClick={download}
+          disabled={busy || plan.include.length === 0 || plan.overLimit}
+        >
+          <Download aria-hidden size={14} />
+          {busy ? "Downloading…" : "Download"}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDone}
+          disabled={busy}
+          aria-label="Stop selecting"
+        >
+          <X aria-hidden size={16} />
+        </Button>
+      </div>
+      {notes.length > 0 || message ? (
+        <p className="text-caption text-muted">{[message, ...notes].filter(Boolean).join(". ")}.</p>
+      ) : null}
+    </div>
   );
 }
 

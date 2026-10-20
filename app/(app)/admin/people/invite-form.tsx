@@ -1,17 +1,19 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
-import { Input } from "@/components/ui/input";
-import { RegionSelect, type RegionOption } from "@/components/ui/region-select";
 import { Select } from "@/components/ui/select";
 import type { Role } from "@/lib/domain/permissions";
-import { isRole, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/domain/roles";
+import { isRole, parseEmailList, ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/domain/roles";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
 import type { Team } from "@/lib/supabase/database.types";
-import { invitePerson } from "./actions";
+import { invitePeople } from "./actions";
 
+/**
+ * Invite one person or paste a whole list. Everyone gets the same role, team
+ * and regions.
+ */
 export function InviteForm({
   teams,
   regions,
@@ -19,30 +21,45 @@ export function InviteForm({
 }: {
   teams: Team[];
   /** Regions the inviter runs. */
-  regions: RegionOption[];
-  /** Overall admins can invite admins and make region admins. */
+  regions: { id: string; name: string }[];
+  /** Super admins can invite admins and make region admins. */
   isAdmin: boolean;
 }) {
-  const [state, action, pending] = useActionState(
-    invitePerson,
-    EMPTY_FORM_STATE,
-  );
-
+  const [state, action, pending] = useActionState(invitePeople, EMPTY_FORM_STATE);
   const [role, setRole] = useState<Role>("member");
+  const [emailText, setEmailText] = useState("");
+  const [joining, setJoining] = useState<Set<string>>(
+    () => new Set(regions.length === 1 ? [regions[0].id] : []),
+  );
   const isViewer = role === "viewer";
+  const emailsId = useId();
+  const count = parseEmailList(emailText).emails.length;
 
   return (
     <form action={action} className="flex flex-col gap-4">
-      <Input
-        label="Google email address"
-        name="email"
-        type="email"
-        inputMode="email"
-        autoComplete="off"
-        autoCapitalize="none"
-        placeholder="name@gmail.com"
-        required
-      />
+      <div className="flex flex-col gap-2">
+        <label htmlFor={emailsId} className="text-body-sm font-bold text-ink">
+          Google email addresses
+        </label>
+        <textarea
+          id={emailsId}
+          name="emails"
+          rows={4}
+          required
+          value={emailText}
+          onChange={(event) => setEmailText(event.target.value)}
+          autoCapitalize="none"
+          autoComplete="off"
+          spellCheck={false}
+          placeholder={"name@gmail.com\nanother@gmail.com"}
+          className="rounded-md border border-hairline bg-surface-soft px-4 py-3 text-body text-ink transition-colors placeholder:text-muted-soft hover:border-muted focus:border-primary"
+        />
+        <p className="text-caption text-muted">
+          One, or a whole list: one per line or separated by commas.
+          {count > 1 ? ` ${count} addresses.` : ""}
+        </p>
+      </div>
+
       <div className="grid gap-4 tablet:grid-cols-2">
         <Select
           label="Role"
@@ -72,18 +89,66 @@ export function InviteForm({
           ))}
         </Select>
       </div>
-      <RegionSelect regions={regions} label="Region they join" />
-      {isAdmin && role === "member" && regions.length > 0 ? (
+
+      {regions.length > 1 && role !== "admin" ? (
+        <fieldset className="flex min-w-0 flex-col gap-2">
+          <legend className="mb-2 text-body-sm font-bold text-ink">Regions they join</legend>
+          <ul className="flex flex-col gap-2">
+            {regions.map((region) => {
+              const ticked = joining.has(region.id);
+              return (
+                <li
+                  key={region.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-soft px-3 py-2"
+                >
+                  <label className="flex items-center gap-3 text-body-sm font-bold text-ink">
+                    <input
+                      type="checkbox"
+                      name={`region:${region.id}`}
+                      checked={ticked}
+                      onChange={(event) =>
+                        setJoining((previous) => {
+                          const next = new Set(previous);
+                          if (event.target.checked) next.add(region.id);
+                          else next.delete(region.id);
+                          return next;
+                        })
+                      }
+                      className="h-4 w-4 accent-primary"
+                    />
+                    {region.name}
+                  </label>
+                  {isAdmin && role === "member" && ticked ? (
+                    <label className="flex items-center gap-2 text-caption text-muted">
+                      <input
+                        type="checkbox"
+                        name={`region_admin:${region.id}`}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      Region admin
+                    </label>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </fieldset>
+      ) : regions.length === 1 && isAdmin && role === "member" ? (
         <label className="flex items-start gap-3 rounded-md bg-surface-soft p-3 text-body-sm text-ink">
-          <input type="checkbox" name="region_admin" className="mt-1 h-4 w-4 accent-primary" />
+          <input
+            type="checkbox"
+            name={`region_admin:${regions[0].id}`}
+            className="mt-1 h-4 w-4 accent-primary"
+          />
           <span className="flex flex-col">
-            <span className="font-bold">Region admin</span>
+            <span className="font-bold">Region admin of {regions[0].name}</span>
             <span className="text-caption text-muted">
-              Runs this region: its services, schedule, people, Drive and Telegram group.
+              Runs the region: its services, schedule, people, Drive and Telegram group.
             </span>
           </span>
         </label>
       ) : null}
+
       {isViewer ? (
         <p className="text-body-sm text-muted">
           A viewer sees only the categories delivered to their team, so they
@@ -93,7 +158,7 @@ export function InviteForm({
       ) : null}
       <FormMessage state={state} />
       <Button type="submit" disabled={pending} className="tablet:self-start">
-        {pending ? "Inviting…" : "Invite"}
+        {pending ? "Inviting…" : count > 1 ? `Invite ${count} people` : "Invite"}
       </Button>
     </form>
   );

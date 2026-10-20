@@ -58,8 +58,8 @@ export function PeopleView({ data }: { data: PeopleData }) {
         description="Only people you invite here can sign in. Open someone to change their role or access."
         action={
           <Modal
-            title="Invite someone"
-            description="They sign in with Google using this email address."
+            title="Invite people"
+            description="They sign in with Google using these email addresses."
             triggerClassName={buttonClasses("primary")}
             trigger={
               <>

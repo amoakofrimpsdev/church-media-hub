@@ -49,22 +49,22 @@ export type Database = {
           invited_by: string | null;
           created_at: string;
           accepted_at: string | null;
-          region_id: string | null;
-          region_admin: boolean;
+          region_ids: string[];
+          region_admin_ids: string[];
         };
         Insert: {
           email: string;
           role?: AppRole;
           team_id?: string | null;
           invited_by?: string | null;
-          region_id?: string | null;
-          region_admin?: boolean;
+          region_ids?: string[];
+          region_admin_ids?: string[];
         };
         Update: {
           role?: AppRole;
           team_id?: string | null;
-          region_id?: string | null;
-          region_admin?: boolean;
+          region_ids?: string[];
+          region_admin_ids?: string[];
         };
         Relationships: [];
       };

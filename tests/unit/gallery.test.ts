@@ -6,6 +6,7 @@ import {
   hasFilters,
   parseGalleryFilters,
   parseThumbnailSize,
+  planDownload,
 } from "@/lib/domain/gallery";
 
 const CATEGORY = "0b9f6c1e-3a52-4c8e-9d1f-2a6b7c8d9e0f";
@@ -124,5 +125,21 @@ describe("contentDisposition", () => {
 
   it("keeps non-English names via the UTF-8 form", () => {
     expect(contentDisposition("Café.jpg")).toContain("filename*=UTF-8''Caf%C3%A9.jpg");
+  });
+});
+
+describe("downloading a selection", () => {
+  const MB = 1024 * 1024;
+  const file = (id: string, sizeBytes: number, canDownload = true) => ({ id, sizeBytes, canDownload });
+
+  it("zips photos and leaves out large videos and files that may not be downloaded", () => {
+    expect(
+      planDownload([file("a", 5 * MB), file("b", 3 * MB), file("video", 400 * MB), file("c", 1 * MB, false)]),
+    ).toEqual({ include: ["a", "b"], totalBytes: 8 * MB, tooLarge: 1, notAllowed: 1, overLimit: false });
+  });
+
+  it("says when the selection is too big for one zip", () => {
+    const many = Array.from({ length: 30 }, (_, index) => file(String(index), 40 * MB));
+    expect(planDownload(many).overLimit).toBe(true);
   });
 });

@@ -101,7 +101,7 @@ export function ShareView({ data }: { data: ShareData }) {
             </p>
           </div>
         ) : (
-          <GalleryGrid items={data.items} shared />
+          <GalleryGrid items={data.items} shared downloadTitle={data.title} />
         )}
 
         {data.page > 1 || data.hasNextPage ? (

@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
-import { pickRegion, requireManager } from "@/lib/regions";
-import { isRole, normalizeEmail } from "@/lib/domain/roles";
+import { requireManager } from "@/lib/regions";
+import { BATCH_INVITE_MAX, isRole, normalizeEmail, parseEmailList } from "@/lib/domain/roles";
 import { revokeDriveGrants } from "@/lib/google/grants";
 import type { FormState } from "@/lib/form-state";
 import { createClient } from "@/lib/supabase/server";
@@ -11,62 +11,86 @@ import { createClient } from "@/lib/supabase/server";
 const UNIQUE_VIOLATION = "23505";
 const GENERIC_ERROR = "Could not save. Check your connection and try again.";
 
-export async function invitePerson(
+/**
+ * Invites one person or a whole list at once. Everyone in the list gets the
+ * same role, team and regions. Anyone who already has access, or already has
+ * an invite waiting, is skipped and named in the reply.
+ */
+export async function invitePeople(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
   const { profile: admin, regions } = await requireManager();
   const isAdmin = admin.role === "admin";
 
-  const email = normalizeEmail(formData.get("email"));
-  if (!email) return { error: "Enter a valid email address." };
+  const { emails, invalid } = parseEmailList(formData.get("emails"));
+  if (emails.length === 0) {
+    return { error: invalid.length > 0 ? `“${invalid[0]}” is not an email address.` : "Enter at least one email address." };
+  }
+  if (emails.length > BATCH_INVITE_MAX) {
+    return { error: `That is ${emails.length} addresses. Invite up to ${BATCH_INVITE_MAX} at a time.` };
+  }
 
   const role = formData.get("role");
   if (!isRole(role)) return { error: "Choose a role." };
-  if (role === "admin" && !isAdmin) return { error: "Only an overall admin can invite another admin." };
+  if (role === "admin" && !isAdmin) return { error: "Only a super admin can invite another admin." };
 
-  const regionValue = formData.get("region");
-  const region = pickRegion(regions, typeof regionValue === "string" ? regionValue : null);
-  if (!region) return { error: "Choose which region they join." };
-  // Only overall admins hand out region admin.
-  const regionAdmin = isAdmin && role === "member" && formData.get("region_admin") === "on";
+  // Regions they join: the ones ticked, or the only one there is.
+  const ticked = regions.filter((region) => formData.get(`region:${region.id}`) === "on");
+  const joining = ticked.length > 0 ? ticked : regions.length === 1 ? regions : [];
+  if (joining.length === 0 && role !== "admin") return { error: "Tick at least one region they join." };
+  // Only super admins hand out region admin, and only to members.
+  const running =
+    isAdmin && role === "member"
+      ? joining.filter((region) => formData.get(`region_admin:${region.id}`) === "on")
+      : [];
 
   const teamValue = formData.get("team_id");
   const teamId = typeof teamValue === "string" && teamValue ? teamValue : null;
-
   if (role === "viewer" && !teamId) {
-    return { error: "Choose the team this viewer belongs to. Without one they cannot see anything." };
+    return { error: "Choose the team viewers belong to. Without one they cannot see anything." };
   }
 
   const supabase = await createClient();
+  const [people, pending] = await Promise.all([
+    supabase.from("profiles").select("email").in("email", emails),
+    supabase.from("invites").select("email").in("email", emails),
+  ]);
+  const hasAccess = new Set((people.data ?? []).map((row) => row.email));
+  const invitedAlready = new Set((pending.data ?? []).map((row) => row.email));
+  const toInvite = emails.filter((email) => !hasAccess.has(email) && !invitedAlready.has(email));
 
-  const { data: existing } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
-  if (existing) return { error: `${email} already has access.` };
-
-  const { error } = await supabase
-    .from("invites")
-    .insert({
-      email,
-      role,
-      team_id: teamId,
-      invited_by: admin.id,
-      region_id: region.id,
-      region_admin: regionAdmin,
-    });
-
-  if (error) {
-    if (error.code === UNIQUE_VIOLATION) {
-      return { error: `${email} has already been invited.` };
+  if (toInvite.length > 0) {
+    const { error } = await supabase.from("invites").insert(
+      toInvite.map((email) => ({
+        email,
+        role,
+        team_id: teamId,
+        invited_by: admin.id,
+        region_ids: joining.map((region) => region.id),
+        region_admin_ids: running.map((region) => region.id),
+      })),
+    );
+    if (error) {
+      if (error.code === UNIQUE_VIOLATION) {
+        return { error: "Someone in the list was invited a moment ago. Try again." };
+      }
+      return { error: GENERIC_ERROR };
     }
-    return { error: GENERIC_ERROR };
   }
 
+  const skipped = [
+    ...[...hasAccess].map((email) => `${email} already has access`),
+    ...[...invitedAlready].map((email) => `${email} was already invited`),
+    ...invalid.map((piece) => `“${piece}” is not an email address`),
+  ];
   revalidatePath("/admin/people");
-  return { success: `Invited. ${email} can now sign in with Google.` };
+  if (toInvite.length === 0) return { error: `Nobody new to invite. ${skipped.join("; ")}.` };
+  const invited =
+    toInvite.length === 1
+      ? `Invited. ${toInvite[0]} can now sign in with Google.`
+      : `Invited ${toInvite.length} people. They can now sign in with Google.`;
+  return { success: skipped.length > 0 ? `${invited} Skipped: ${skipped.join("; ")}.` : invited };
 }
 
 export async function revokeInvite(

@@ -23,8 +23,8 @@ async function signUpIn(
   teamId: string | null = null,
 ): Promise<string> {
   await db.admin(
-    "insert into public.invites (email, role, team_id, region_id, region_admin) values ($1, $2, $3, $4, $5)",
-    [email, role, teamId, regionId, regionAdmin],
+    "insert into public.invites (email, role, team_id, region_ids, region_admin_ids) values ($1, $2, $3, $4, $5)",
+    [email, role, teamId, [regionId], regionAdmin ? [regionId] : []],
   );
   const [user] = await db.admin<{ id: string }>(
     "insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id",
@@ -195,19 +195,27 @@ describe("region admins", () => {
   });
 
   it("can invite members to their region, but not admins or region admins", async () => {
-    await db.as(ocAdmin, "insert into public.invites (email, role, region_id) values ('new@example.com', 'member', $1)", [oc]);
+    await db.as(ocAdmin, "insert into public.invites (email, role, region_ids) values ('new@example.com', 'member', $1)", [[oc]]);
     await expect(
-      db.as(ocAdmin, "insert into public.invites (email, role, region_id) values ('boss@example.com', 'admin', $1)", [oc]),
+      db.as(ocAdmin, "insert into public.invites (email, role, region_ids) values ('boss@example.com', 'admin', $1)", [[oc]]),
     ).rejects.toThrow(/row-level security/);
     await expect(
       db.as(
         ocAdmin,
-        "insert into public.invites (email, role, region_id, region_admin) values ('lead@example.com', 'member', $1, true)",
-        [oc],
+        "insert into public.invites (email, role, region_ids, region_admin_ids) values ('lead@example.com', 'member', $1, $1)",
+        [[oc]],
       ),
     ).rejects.toThrow(/row-level security/);
     await expect(
-      db.as(ocAdmin, "insert into public.invites (email, role, region_id) values ('far@example.com', 'member', $1)", [main]),
+      db.as(ocAdmin, "insert into public.invites (email, role, region_ids) values ('far@example.com', 'member', $1)", [[main]]),
+    ).rejects.toThrow(/row-level security/);
+    // Every region on the invite must be one they run.
+    await expect(
+      db.as(ocAdmin, "insert into public.invites (email, role, region_ids) values ('both@example.com', 'member', $1)", [[oc, main]]),
+    ).rejects.toThrow(/row-level security/);
+    // And it must say which region.
+    await expect(
+      db.as(ocAdmin, "insert into public.invites (email, role, region_ids) values ('none@example.com', 'member', '{}')"),
     ).rejects.toThrow(/row-level security/);
   });
 
@@ -245,11 +253,58 @@ describe("region admins", () => {
   });
 });
 
+describe("inviting into several regions", () => {
+  it("puts the new person in every region on the invite, running the ones chosen", async () => {
+    await db.as(
+      admin,
+      "insert into public.invites (email, role, region_ids, region_admin_ids) values ('two@example.com', 'member', $1, $2)",
+      [[main, oc], [oc]],
+    );
+    const [{ id }] = await db.admin<{ id: string }>(
+      "insert into auth.users (email, raw_user_meta_data) values ('two@example.com', '{}') returning id",
+    );
+    const places = await db.admin<{ region_id: string; is_region_admin: boolean }>(
+      "select region_id, is_region_admin from public.region_members where profile_id = $1 order by is_region_admin",
+      [id],
+    );
+    expect(places).toEqual([
+      { region_id: main, is_region_admin: false },
+      { region_id: oc, is_region_admin: true },
+    ]);
+  });
+
+  it("never makes a viewer a region admin", async () => {
+    await db.as(
+      admin,
+      "insert into public.invites (email, role, region_ids, region_admin_ids) values ('viewer2@example.com', 'viewer', $1, $1)",
+      [[oc]],
+    );
+    const [{ id }] = await db.admin<{ id: string }>(
+      "insert into auth.users (email, raw_user_meta_data) values ('viewer2@example.com', '{}') returning id",
+    );
+    const [place] = await db.admin<{ is_region_admin: boolean }>(
+      "select is_region_admin from public.region_members where profile_id = $1",
+      [id],
+    );
+    expect(place.is_region_admin).toBe(false);
+  });
+
+  it("still lets someone sign in if a region on their invite no longer exists", async () => {
+    await db.admin(
+      "insert into public.invites (email, role, region_ids) values ('stale@example.com', 'member', $1)",
+      [[oc, "00000000-0000-4000-8000-000000000000"]],
+    );
+    await expect(
+      db.admin("insert into auth.users (email, raw_user_meta_data) values ('stale@example.com', '{}')"),
+    ).resolves.toBeDefined();
+  });
+});
+
 describe("the server's own account", () => {
   it("can fill in the default region (scheduled jobs and the secret key use it)", async () => {
     await expect(
       db.exec(
-        "set role service_role; select private.only_region(); reset role;",
+        "set role service_role; select private.only_region(), private.only_region_list(); reset role;",
       ),
     ).resolves.toBeUndefined();
   });
