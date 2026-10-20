@@ -422,9 +422,11 @@ export const previewPeople: PeopleData = {
   regions: PREVIEW_REGIONS,
   isAdmin: true,
   invites: [
-    { email: "new.volunteer@example.com", role: "member", teamName: "Media", regionName: "OC" },
-    { email: "pastor.james@example.com", role: "viewer", teamName: "Website", regionName: "Metro Heights" },
+    { email: "new.volunteer@example.com", role: "member", teamId: null, teamName: "Media", regionName: "OC", regionIds: ["g2"], regionAdminIds: [] },
+    { email: "pastor.james@example.com", role: "viewer", teamId: null, teamName: "Website", regionName: "Metro Heights", regionIds: ["g1"], regionAdminIds: [] },
   ],
+  appUrl: "https://church-media-hub-khaki.vercel.app",
+  botUsername: "rcwmediabot",
   people: [
     { id: "p1", name: "Ama Owusu", email: "ama.owusu@example.com", role: "admin", active: true, isSelf: true, teams: ["Media"], telegramLinked: true , regionNames: namesOf(['g1']), regions: placesIn(['g1'], []) },
     { id: "p2", name: "Grace Mensah", email: "grace.mensah@example.com", role: "member", active: true, isSelf: false, teams: ["Media"], telegramLinked: true , regionNames: namesOf(['g1']), regions: placesIn(['g1'], ['g1']) },

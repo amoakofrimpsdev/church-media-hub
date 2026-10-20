@@ -96,3 +96,29 @@ test("share link files cannot be fetched with a made-up token", async ({ request
     expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
   }
 });
+
+test("every page sends security headers", async ({ request }) => {
+  for (const path of ["/login", "/s/" + "a".repeat(43)]) {
+    const response = await request.get(path);
+    const headers = response.headers();
+    expect(headers["x-frame-options"], path).toBe("DENY");
+    expect(headers["x-content-type-options"], path).toBe("nosniff");
+    expect(headers["content-security-policy"], path).toContain("frame-ancestors 'none'");
+  }
+  // A share link's address holds its secret: never sent on to other sites.
+  const share = await request.get("/s/" + "a".repeat(43));
+  expect(share.headers()["referrer-policy"]).toBe("no-referrer");
+});
+
+test("design previews do not exist on a production build", async ({ request }) => {
+  test.skip(!process.env.CI, "Previews are on in local development, by design.");
+  const response = await request.get("/preview/dashboard", { maxRedirects: 0 });
+  // Signed-out visitors are sent to sign in, and nothing renders.
+  expect([302, 303, 307, 308, 404]).toContain(response.status());
+});
+
+test("sign-in never sends someone to another site afterwards", async ({ request }) => {
+  const response = await request.get("/auth/callback?next=//evil.example.com", { maxRedirects: 0 });
+  const location = response.headers()["location"] ?? "";
+  expect(location).not.toContain("evil.example.com");
+});

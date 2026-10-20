@@ -103,8 +103,13 @@ export async function revokeShareLink(
     .from("share_links")
     .update({ revoked_at: new Date().toISOString() })
     .eq("id", id)
-    .is("revoked_at", null);
+    .is("revoked_at", null)
+    .select("id");
   if (error) return { error: "Could not turn the link off. Try again." };
+  // Nothing changed: not a link this person may manage (or already off).
+  // Only then touch Drive, which uses the church's own account.
+  const { data: link } = await supabase.from("share_links").select("revoked_at").eq("id", id).maybeSingle();
+  if (!link) return { error: "Link not found." };
 
   // Any videos this link opened up in Google Drive go private again. If Drive
   // cannot be reached now, the scheduled job finishes it.

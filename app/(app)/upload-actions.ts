@@ -6,6 +6,7 @@ import { getProfile } from "@/lib/auth";
 import { can } from "@/lib/domain/permissions";
 import { announceUploads } from "@/lib/notifications/telegram";
 import { loadUploadService } from "@/lib/upload-targets";
+import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/uploads/api";
 
 /**
@@ -26,6 +27,13 @@ export async function fetchUploadService(serviceId: string): Promise<UploadServi
 export async function uploadsFinished(serviceIds: string[]): Promise<void> {
   const profile = await getProfile();
   if (!profile || !can(profile.role, "upload_media")) return;
-  const ids = [...new Set(serviceIds.filter(isUuid))].slice(0, 5);
+  const wanted = [...new Set(serviceIds.filter(isUuid))].slice(0, 5);
+  if (wanted.length === 0) return;
+  // Only services this person can see (the bot posts with its own account).
+  const { data: visible } = await (await createClient())
+    .from("services")
+    .select("id")
+    .in("id", wanted);
+  const ids = (visible ?? []).map((service) => service.id);
   if (ids.length > 0) after(() => announceUploads(ids));
 }

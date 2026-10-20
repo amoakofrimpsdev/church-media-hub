@@ -96,3 +96,26 @@ export function pickRegion(
   if (chosen) return regions.find((region) => region.id === chosen) ?? null;
   return regions.length === 1 ? regions[0] : null;
 }
+
+/**
+ * True if the signed-in person runs the region a service belongs to (overall
+ * admins run every region). Check this before anything that touches Google
+ * Drive or Telegram for a service: those calls use the app's own accounts,
+ * so the database's rules cannot stop them on their own.
+ */
+export async function managesService(serviceId: string): Promise<boolean> {
+  if (!isUuidLike(serviceId)) return false;
+  const supabase = await createClient();
+  const { data: service } = await supabase
+    .from("services")
+    .select("region_id")
+    .eq("id", serviceId)
+    .maybeSingle();
+  if (!service) return false;
+  const profile = await getProfile();
+  if (profile?.role === "admin") return true;
+  return (await getManagedRegions()).some((region) => region.id === service.region_id);
+}
+
+const isUuidLike = (value: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);

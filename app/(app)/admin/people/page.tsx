@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { PeopleView } from "@/components/admin/people-view";
 import { getAllRegions, requireManager } from "@/lib/regions";
+import { appUrl } from "@/lib/env";
+import { getMe } from "@/lib/telegram/client";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "People" };
@@ -21,6 +23,7 @@ export default async function PeoplePage() {
     getAllRegions(),
     supabase.from("region_members").select("*"),
   ]);
+  const bot = await getMe();
   const regionName = new Map(allRegions.map((region) => [region.id, region.name]));
   const severalRegions = allRegions.filter((region) => region.is_active).length > 1;
   const placesByPerson = new Map<string, Map<string, boolean>>();
@@ -49,12 +52,17 @@ export default async function PeoplePage() {
         invites: (invites.data ?? []).map((invite) => ({
           email: invite.email,
           role: invite.role,
+          teamId: invite.team_id,
           teamName: invite.team_id ? (teamName.get(invite.team_id) ?? null) : null,
+          regionIds: invite.region_ids,
+          regionAdminIds: invite.region_admin_ids,
           regionName: severalRegions
             ? invite.region_ids.flatMap((id) => regionName.get(id) ?? []).join(", ") || null
             : null,
         })),
         regions: managed.map(({ id, name }) => ({ id, name })),
+        appUrl: appUrl(),
+        botUsername: bot.ok ? bot.result.username : null,
         isAdmin: admin.role === "admin",
         people: (people.data ?? []).map((person) => ({
           id: person.id,

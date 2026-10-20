@@ -1,5 +1,6 @@
 import { MailPlus, MapPin, Settings2, TriangleAlert, UserPlus } from "lucide-react";
 import Link from "next/link";
+import { EditInviteForm, ShareInviteButton } from "@/app/(app)/admin/people/invite-edit";
 import { InviteForm } from "@/app/(app)/admin/people/invite-form";
 import {
   CancelInviteButton,
@@ -34,7 +35,18 @@ export type PersonCard = {
 
 export type PeopleData = {
   people: PersonCard[];
-  invites: { email: string; role: Role; teamName: string | null; regionName: string | null }[];
+  invites: {
+    email: string;
+    role: Role;
+    teamId: string | null;
+    teamName: string | null;
+    regionName: string | null;
+    regionIds: string[];
+    regionAdminIds: string[];
+  }[];
+  /** For the invite message: the app's address and the bot's username. */
+  appUrl: string;
+  botUsername: string | null;
   /** For the invite form's team picker. */
   teams: Team[];
   /** Regions the person on this page runs. */
@@ -84,6 +96,12 @@ export function PeopleView({ data }: { data: PeopleData }) {
                 key={invite.email}
                 className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-hairline p-3"
               >
+                <Modal
+                  title={invite.email}
+                  description="Waiting for them to sign in. Change anything here until they do."
+                  triggerLabel={`Open the invite for ${invite.email}`}
+                  triggerClassName="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  trigger={
                 <span className="flex min-w-0 items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-strong text-muted">
                     <MailPlus aria-hidden size={16} />
@@ -99,6 +117,26 @@ export function PeopleView({ data }: { data: PeopleData }) {
                     </span>
                   </span>
                 </span>
+                  }
+                >
+                  <ShareInviteButton
+                    email={invite.email}
+                    appUrl={data.appUrl}
+                    botUsername={data.botUsername}
+                  />
+                  <section className="flex flex-col gap-3 border-t border-hairline pt-4">
+                    <EditInviteForm
+                      email={invite.email}
+                      role={invite.role}
+                      teamId={invite.teamId}
+                      regionIds={invite.regionIds}
+                      regionAdminIds={invite.regionAdminIds}
+                      teams={data.teams}
+                      regions={data.regions}
+                      isAdmin={data.isAdmin}
+                    />
+                  </section>
+                </Modal>
                 <CancelInviteButton email={invite.email} />
               </li>
             ))}

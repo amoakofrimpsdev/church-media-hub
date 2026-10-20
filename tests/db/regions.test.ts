@@ -219,6 +219,28 @@ describe("region admins", () => {
     ).rejects.toThrow(/row-level security/);
   });
 
+  it("can edit a waiting invite in their region, but not move it to another region", async () => {
+    await db.as(ocAdmin, "insert into public.invites (email, role, region_ids) values ('edit.me@example.com', 'member', $1)", [[oc]]);
+    const changed = await db.as(
+      ocAdmin,
+      "update public.invites set role = 'viewer' where email = 'edit.me@example.com' returning email",
+    );
+    expect(changed).toHaveLength(1);
+    await expect(
+      db.as(ocAdmin, "update public.invites set region_ids = $1 where email = 'edit.me@example.com'", [[main]]),
+    ).rejects.toThrow(/row-level security/);
+    await expect(
+      db.as(ocAdmin, "update public.invites set role = 'admin' where email = 'edit.me@example.com'"),
+    ).rejects.toThrow(/row-level security/);
+    // Invites in a region they do not run are invisible to them.
+    await db.admin("insert into public.invites (email, role, region_ids) values ('main.only@example.com', 'member', $1)", [[main]]);
+    const touched = await db.as(
+      ocAdmin,
+      "update public.invites set role = 'viewer' where email = 'main.only@example.com' returning email",
+    );
+    expect(touched).toHaveLength(0);
+  });
+
   it("can share their own region, but not every region or another one's service", async () => {
     await db.as(
       ocAdmin,
@@ -314,7 +336,8 @@ describe("with more than one region", () => {
   it("requires a region for a new service", async () => {
     await expect(
       db.as(admin, "insert into public.services (name, starts_at) values ('Which one?', now())"),
-    ).rejects.toThrow(/null value in column "region_id"/);
+      // Refused either by the access rule or by the column being required.
+    ).rejects.toThrow(/null value in column "region_id"|row-level security/);
   });
 
   it("does not let anyone see another region's Google account", async () => {

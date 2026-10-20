@@ -16,6 +16,25 @@ const GENERIC_ERROR = "Could not save. Check your connection and try again.";
  * same role, team and regions. Anyone who already has access, or already has
  * an invite waiting, is skipped and named in the reply.
  */
+/**
+ * The regions ticked on an invite form: those they join (or the only one
+ * there is) and, for super admins inviting members, those they run.
+ */
+function readRegionChoices(
+  formData: FormData,
+  regions: { id: string }[],
+  isAdmin: boolean,
+  role: "admin" | "member" | "viewer",
+) {
+  const ticked = regions.filter((region) => formData.get(`region:${region.id}`) === "on");
+  const joining = ticked.length > 0 ? ticked : regions.length === 1 ? regions : [];
+  const running =
+    isAdmin && role === "member"
+      ? joining.filter((region) => formData.get(`region_admin:${region.id}`) === "on")
+      : [];
+  return { joining, running };
+}
+
 export async function invitePeople(
   _previous: FormState,
   formData: FormData,
@@ -35,15 +54,8 @@ export async function invitePeople(
   if (!isRole(role)) return { error: "Choose a role." };
   if (role === "admin" && !isAdmin) return { error: "Only a super admin can invite another admin." };
 
-  // Regions they join: the ones ticked, or the only one there is.
-  const ticked = regions.filter((region) => formData.get(`region:${region.id}`) === "on");
-  const joining = ticked.length > 0 ? ticked : regions.length === 1 ? regions : [];
+  const { joining, running } = readRegionChoices(formData, regions, isAdmin, role);
   if (joining.length === 0 && role !== "admin") return { error: "Tick at least one region they join." };
-  // Only super admins hand out region admin, and only to members.
-  const running =
-    isAdmin && role === "member"
-      ? joining.filter((region) => formData.get(`region_admin:${region.id}`) === "on")
-      : [];
 
   const teamValue = formData.get("team_id");
   const teamId = typeof teamValue === "string" && teamValue ? teamValue : null;
@@ -211,4 +223,58 @@ export async function setPersonRegions(
 
   revalidatePath("/admin/people");
   return { success: "Regions saved." };
+}
+
+/** Changes an invite that has not been used yet: role, team and regions. */
+export async function updateInvite(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { profile: admin, regions } = await requireManager();
+  const isAdmin = admin.role === "admin";
+
+  const email = normalizeEmail(formData.get("email"));
+  if (!email) return { error: "That invite no longer exists." };
+  const role = formData.get("role");
+  if (!isRole(role)) return { error: "Choose a role." };
+  if (role === "admin" && !isAdmin) return { error: "Only a super admin can make someone an admin." };
+
+  const teamValue = formData.get("team_id");
+  const teamId = typeof teamValue === "string" && teamValue ? teamValue : null;
+  if (role === "viewer" && !teamId) {
+    return { error: "Choose the team this viewer belongs to. Without one they cannot see anything." };
+  }
+
+  const supabase = await createClient();
+  const { data: invite } = await supabase
+    .from("invites")
+    .select("region_ids, region_admin_ids")
+    .eq("email", email)
+    .is("accepted_at", null)
+    .maybeSingle();
+  if (!invite) return { error: "That invite was used or cancelled. Refresh the page." };
+
+  const { joining, running } = readRegionChoices(formData, regions, isAdmin, role);
+  if (joining.length === 0 && role !== "admin") return { error: "Tick at least one region they join." };
+  // Regions this person does not run are not on their form: leave those as
+  // they were. Region admins cannot change who runs a region.
+  const mine = new Set(regions.map((region) => region.id));
+  const regionIds = [
+    ...invite.region_ids.filter((id) => !mine.has(id)),
+    ...joining.map((region) => region.id),
+  ];
+  const regionAdminIds = isAdmin
+    ? running.map((region) => region.id).concat(invite.region_admin_ids.filter((id) => !mine.has(id)))
+    : invite.region_admin_ids;
+
+  const { data: saved, error } = await supabase
+    .from("invites")
+    .update({ role, team_id: teamId, region_ids: regionIds, region_admin_ids: regionAdminIds })
+    .eq("email", email)
+    .is("accepted_at", null)
+    .select("email");
+  if (error || !saved || saved.length === 0) return { error: GENERIC_ERROR };
+
+  revalidatePath("/admin/people");
+  return { success: "Invite updated." };
 }
