@@ -256,11 +256,18 @@ npm run lint         # ESLint
 npm run typecheck    # TypeScript, strict mode
 npm test             # Unit and database tests (Vitest)
 npm run test:e2e     # Browser tests (Playwright)
+npm run test:perf    # Load test: two years of data, the busiest queries timed
+node tests/tools/probe-live.mjs https://church-media-hub-khaki.vercel.app
+                     # Read-only checks of the live site, as a stranger
 ```
 
 - **Unit tests** cover the business rules: permissions, deadlines, reminders,
   recurrence and daylight saving, upload chunking and resume, message wording,
   share links, email lists and ZIP files.
+- **Leak guards** (`tests/db/security.test.ts`) check every table and function
+  that exists, so anything added later without protection fails: Row Level
+  Security on everywhere, nothing for signed-out visitors, server-only tables
+  and private columns closed, and people's details hidden across regions.
 - **Database tests** apply every migration to an in-process Postgres
   ([PGlite](https://pglite.dev)) and query it as a super admin, a region admin,
   members and viewers in different regions, and a signed-out visitor. No

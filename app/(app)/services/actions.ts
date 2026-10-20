@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { requireProfile } from "@/lib/auth";
-import { pickRegion, requireManager } from "@/lib/regions";
+import { managesService, pickRegion, requireManager } from "@/lib/regions";
 import { churchLocalToUtc, serviceFolderName } from "@/lib/domain/time";
 import { getDriveSession } from "@/lib/google/connection";
 import { DriveError, moveToBin, renameFile } from "@/lib/google/drive";
@@ -72,6 +72,7 @@ export async function retryServiceFolders(
 
   const serviceId = text(formData, "service_id");
   if (!serviceId) return { error: "Service not found." };
+  if (!(await managesService(serviceId))) return { error: NOT_YOURS };
 
   const supabase = await createClient();
   const result = await ensureServiceFolders(supabase, serviceId);
@@ -84,6 +85,7 @@ export async function retryServiceFolders(
 }
 
 const UNIQUE_VIOLATION = "23505";
+const NOT_YOURS = "Only an admin of this service's region can do that.";
 const GENERIC_ERROR = "Could not save. Check your connection and try again.";
 
 function refreshService(serviceId: string): void {
@@ -150,6 +152,8 @@ export async function deleteService(
 
   const serviceId = text(formData, "service_id");
   if (!serviceId) return { error: "Service not found." };
+  // Before Drive: being able to see a service is not enough to bin its folder.
+  if (!(await managesService(serviceId))) return { error: NOT_YOURS };
 
   const supabase = await createClient();
   const [{ data: service }, { count }] = await Promise.all([
@@ -228,10 +232,12 @@ export async function deleteUpload(
   const supabase = await createClient();
   const { data: upload } = await supabase
     .from("uploads")
-    .select("id, drive_file_id, services!inner(drive_region_id)")
+    .select("id, service_id, drive_file_id, services!inner(drive_region_id)")
     .eq("id", uploadId)
     .maybeSingle();
   if (!upload) return { error: "That file has already been deleted." };
+  // Before Drive: being able to see a file is not enough to bin it.
+  if (!(await managesService(upload.service_id))) return { error: NOT_YOURS };
 
   // To the Drive bin first (restorable for 30 days), then the record. If
   // Drive cannot be reached, leave both alone.
@@ -276,6 +282,7 @@ export async function addAssignment(
   if (categoryIds.length === 0) {
     return { error: "Tick at least one category they should upload." };
   }
+  if (!(await managesService(serviceId))) return { error: NOT_YOURS };
 
   const supabase = await createClient();
   const { data: assignment, error } = await supabase
@@ -377,6 +384,8 @@ export async function sendReminderNow(
   await requireManager();
   const serviceId = text(formData, "service_id");
   if (!serviceId) return { error: "Service not found." };
+  // The bot posts with its own account, so check here, not in the database.
+  if (!(await managesService(serviceId))) return { error: NOT_YOURS };
 
   // A fresh key each minute: pressing twice by accident sends once.
   const minute = new Date().toISOString().slice(0, 16);

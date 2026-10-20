@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:perf": "vitest run --config vitest.perf.config.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -1076,3 +1076,43 @@ already have access or an invite waiting are skipped and named in the reply.
 and inviting them one by one was the slowest part of setting up a region.
 Some photographers serve more than one region. Keeping the lists on the invite
 row lets one database rule check that a region admin runs every region on it.
+
+## Security audit and load test (October 2026)
+
+**Found and fixed:**
+
+- *Drive and Telegram before the database said yes.* Deleting a service or a
+  photo, retrying folders, assigning, and "Send reminder now" checked only
+  that the person ran *some* region, then relied on the database. But Drive
+  and Telegram calls use the app's own accounts, so a region admin who could
+  see another region's service (as a member there) could bin its Drive files
+  or post to its group before the database refused. Each now checks
+  `managesService()` first. Turning off a share link no longer touches Drive
+  unless the person may see that link. "Uploads finished" only accepts
+  services the person can see.
+- *Emails across regions.* Any signed-in person could read every profile,
+  emails included. Now members and viewers see people who share a region with
+  them, the super admins and themselves; region and super admins see everyone.
+- *Security headers.* Pages could be framed by another site; now they cannot,
+  browsers may not guess file types, and share pages never send their address
+  (which holds the link's secret) to other sites.
+
+**Load test** (`npm run test:perf`, two years of data: three regions, ~620
+services, 30,000 uploads): the home page charts took 1.3–1.8 s, because each
+access rule called a lookup function once per upload row. The rules now work
+out "which regions, categories and teams can this person see" once per query
+and match rows against that list. Charts dropped to 24–66 ms; every other
+page query is under 10 ms.
+
+**Guards that stay:** `tests/db/security.test.ts` checks every table and
+function, not a list, so anything added later without protection fails:
+Row Level Security is on everywhere; signed-out visitors can read, write and
+call nothing; server-only tables and private columns are closed to signed-in
+people; every function that runs with raised rights fixes its search path.
+`tests/tools/probe-live.mjs` runs the same kind of checks, read-only, against
+the live site and database as a stranger would.
+
+**Still worth watching:** each gallery thumbnail is one call to the app,
+which fetches it from Google. Browsers keep them for a day, and Vercel's free
+plan allows a million calls a month, so it is fine at the church's size; if
+it ever approaches the limit, longer browser caching is the first lever.

@@ -20,7 +20,7 @@ export function Select({
   const selectId = id ?? generatedId;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-w-0 flex-col gap-2">
       <label
         htmlFor={selectId}
         className={cn(
@@ -33,7 +33,7 @@ export function Select({
       <select
         id={selectId}
         className={cn(
-          "h-12 rounded-md border border-hairline bg-surface-soft px-3 text-body text-ink transition-colors hover:border-muted focus:border-primary disabled:text-muted-soft",
+          "h-12 w-full min-w-0 truncate rounded-md border border-hairline bg-surface-soft px-3 text-body text-ink transition-colors hover:border-muted focus:border-primary disabled:text-muted-soft",
           className,
         )}
         {...props}

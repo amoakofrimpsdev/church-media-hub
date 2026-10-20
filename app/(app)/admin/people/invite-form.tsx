@@ -28,9 +28,6 @@ export function InviteForm({
   const [state, action, pending] = useActionState(invitePeople, EMPTY_FORM_STATE);
   const [role, setRole] = useState<Role>("member");
   const [emailText, setEmailText] = useState("");
-  const [joining, setJoining] = useState<Set<string>>(
-    () => new Set(regions.length === 1 ? [regions[0].id] : []),
-  );
   const isViewer = role === "viewer";
   const emailsId = useId();
   const count = parseEmailList(emailText).emails.length;
@@ -90,64 +87,7 @@ export function InviteForm({
         </Select>
       </div>
 
-      {regions.length > 1 && role !== "admin" ? (
-        <fieldset className="flex min-w-0 flex-col gap-2">
-          <legend className="mb-2 text-body-sm font-bold text-ink">Regions they join</legend>
-          <ul className="flex flex-col gap-2">
-            {regions.map((region) => {
-              const ticked = joining.has(region.id);
-              return (
-                <li
-                  key={region.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-soft px-3 py-2"
-                >
-                  <label className="flex items-center gap-3 text-body-sm font-bold text-ink">
-                    <input
-                      type="checkbox"
-                      name={`region:${region.id}`}
-                      checked={ticked}
-                      onChange={(event) =>
-                        setJoining((previous) => {
-                          const next = new Set(previous);
-                          if (event.target.checked) next.add(region.id);
-                          else next.delete(region.id);
-                          return next;
-                        })
-                      }
-                      className="h-4 w-4 accent-primary"
-                    />
-                    {region.name}
-                  </label>
-                  {isAdmin && role === "member" && ticked ? (
-                    <label className="flex items-center gap-2 text-caption text-muted">
-                      <input
-                        type="checkbox"
-                        name={`region_admin:${region.id}`}
-                        className="h-4 w-4 accent-primary"
-                      />
-                      Region admin
-                    </label>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        </fieldset>
-      ) : regions.length === 1 && isAdmin && role === "member" ? (
-        <label className="flex items-start gap-3 rounded-md bg-surface-soft p-3 text-body-sm text-ink">
-          <input
-            type="checkbox"
-            name={`region_admin:${regions[0].id}`}
-            className="mt-1 h-4 w-4 accent-primary"
-          />
-          <span className="flex flex-col">
-            <span className="font-bold">Region admin of {regions[0].name}</span>
-            <span className="text-caption text-muted">
-              Runs the region: its services, schedule, people, Drive and Telegram group.
-            </span>
-          </span>
-        </label>
-      ) : null}
+      <RegionChoices regions={regions} isAdmin={isAdmin} role={role} />
 
       {isViewer ? (
         <p className="text-body-sm text-muted">
@@ -161,5 +101,94 @@ export function InviteForm({
         {pending ? "Inviting…" : count > 1 ? `Invite ${count} people` : "Invite"}
       </Button>
     </form>
+  );
+}
+
+/**
+ * Which regions someone joins and (super admins only, for members) which they
+ * run. Used when inviting and when editing an invite.
+ */
+export function RegionChoices({
+  regions,
+  isAdmin,
+  role,
+  joined = [],
+  runs = [],
+}: {
+  regions: { id: string; name: string }[];
+  isAdmin: boolean;
+  role: Role;
+  joined?: string[];
+  runs?: string[];
+}) {
+  const [joining, setJoining] = useState<Set<string>>(
+    () => new Set(regions.length === 1 ? [regions[0].id] : joined),
+  );
+  // Admins are in every region already.
+  if (role === "admin") return null;
+
+  if (regions.length === 1) {
+    return isAdmin && role === "member" ? (
+      <label className="flex items-start gap-3 rounded-md bg-surface-soft p-3 text-body-sm text-ink">
+        <input
+          type="checkbox"
+          name={`region_admin:${regions[0].id}`}
+          defaultChecked={runs.includes(regions[0].id)}
+          className="mt-1 h-4 w-4 accent-primary"
+        />
+        <span className="flex flex-col">
+          <span className="font-bold">Region admin of {regions[0].name}</span>
+          <span className="text-caption text-muted">
+            Runs the region: its services, schedule, people, Drive and Telegram group.
+          </span>
+        </span>
+      </label>
+    ) : null;
+  }
+
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-2">
+      <legend className="mb-2 text-body-sm font-bold text-ink">Regions they join</legend>
+      <ul className="flex flex-col gap-2">
+        {regions.map((region) => {
+          const ticked = joining.has(region.id);
+          return (
+            <li
+              key={region.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-soft px-3 py-2"
+            >
+              <label className="flex items-center gap-3 text-body-sm font-bold text-ink">
+                <input
+                  type="checkbox"
+                  name={`region:${region.id}`}
+                  checked={ticked}
+                  onChange={(event) =>
+                    setJoining((previous) => {
+                      const next = new Set(previous);
+                      if (event.target.checked) next.add(region.id);
+                      else next.delete(region.id);
+                      return next;
+                    })
+                  }
+                  className="h-4 w-4 accent-primary"
+                />
+                {region.name}
+              </label>
+              {isAdmin && role === "member" && ticked ? (
+                <label className="flex items-center gap-2 text-caption text-muted">
+                  <input
+                    type="checkbox"
+                    name={`region_admin:${region.id}`}
+                    defaultChecked={runs.includes(region.id)}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  Region admin
+                </label>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </fieldset>
   );
 }
