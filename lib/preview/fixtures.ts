@@ -331,7 +331,8 @@ const galleryItems: GalleryItem[] = Array.from({ length: 23 }, (_, index) => ({
   urls: {
     small: photo(`g${index}`),
     large: photo(`g${index}`, 1200),
-    download: "#",
+    // A real image, so "Select to download" can be tried in the preview.
+    download: photo(`g${index}`, 1200),
     view: "#",
   },
 }));

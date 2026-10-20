@@ -50,8 +50,9 @@ export default async function PeoplePage() {
           email: invite.email,
           role: invite.role,
           teamName: invite.team_id ? (teamName.get(invite.team_id) ?? null) : null,
-          regionName:
-            severalRegions && invite.region_id ? (regionName.get(invite.region_id) ?? null) : null,
+          regionName: severalRegions
+            ? invite.region_ids.flatMap((id) => regionName.get(id) ?? []).join(", ") || null
+            : null,
         })),
         regions: managed.map(({ id, name }) => ({ id, name })),
         isAdmin: admin.role === "admin",

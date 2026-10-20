@@ -3,6 +3,7 @@ import { CategoriesView } from "@/components/admin/categories-view";
 import { PeopleView } from "@/components/admin/people-view";
 import { RegionsView } from "@/components/admin/regions-view";
 import { ScheduleView } from "@/components/admin/schedule-view";
+import { InviteForm } from "@/app/(app)/admin/people/invite-form";
 import { SeriesForm } from "@/app/(app)/admin/schedule/series-form";
 import { SharesView } from "@/components/admin/shares-view";
 import { TeamsView } from "@/components/admin/teams-view";
@@ -147,6 +148,12 @@ export default async function PreviewPage({
         <AppShell user={previewUser} upload={previewUpload} currentPath="/admin/people">
           <PeopleView data={previewPeople} />
         </AppShell>
+      );
+    case "invite-form":
+      return (
+        <main className="mx-auto max-w-lg p-6">
+          <InviteForm teams={[]} regions={previewPeople.regions} isAdmin />
+        </main>
       );
     case "series-form":
       return (

@@ -134,7 +134,7 @@ export function GalleryView({ data }: { data: GalleryData }) {
           </p>
         </div>
       ) : (
-        <GalleryGrid items={data.items} canDelete={data.canDelete} />
+        <GalleryGrid items={data.items} canDelete={data.canDelete} downloadTitle="RCW photos" />
       )}
 
       {filters.page > 1 || data.hasNextPage ? (

@@ -1048,3 +1048,31 @@ accounts the church already has, instead of paying for more; defaulting to the
 church Drive keeps setup to nothing for a new region. Shared categories and
 teams keep names the same everywhere, so a church-wide share link of "every
 Baptism" still makes sense.
+
+## Downloading a selection as one ZIP, built in the browser
+
+**Choice:** "Select to download" fetches each chosen file through the existing
+download routes, a few at a time, and the browser packs them into one ZIP
+(stored, not recompressed) that it saves. Large videos are left out and
+still open in Google Drive. One ZIP holds at most 1 GB.
+
+**Why:** Zipping on the server would hold every file in a function and send
+the bytes twice, using up the free hosting allowance and the function time
+limit. The browser already has to receive each file anyway. Photos and videos
+are already compressed, so storing them is as small as compressing and much
+faster; the ZIP writer is a short, tested file rather than a new dependency.
+The 1 GB cap keeps it within what a phone can hold in memory. On share links,
+each file still goes through the link's own checks and counts as a download.
+
+## Inviting a list, into several regions
+
+**Choice:** The invite form takes one address or a pasted list (lines, commas,
+or "Name <address>" as copied from an email app), up to 50 at a time, all with
+the same role, team and regions. An invite holds a list of regions to join and
+a list of those to run (`region_ids`, `region_admin_ids`). Addresses that
+already have access or an invite waiting are skipped and named in the reply.
+
+**Why:** People share their emails in a group chat, so they arrive as a list,
+and inviting them one by one was the slowest part of setting up a region.
+Some photographers serve more than one region. Keeping the lists on the invite
+row lets one database rule check that a region admin runs every region on it.

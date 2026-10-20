@@ -66,7 +66,11 @@ export function AlbumView({ data }: { data: AlbumData }) {
           </p>
         </div>
       ) : (
-        <GalleryGrid items={data.items} canDelete={data.canDelete} />
+        <GalleryGrid
+          items={data.items}
+          canDelete={data.canDelete}
+          downloadTitle={`${data.categoryName} - ${data.serviceName} ${data.dateLine}`}
+        />
       )}
     </div>
   );

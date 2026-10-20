@@ -100,3 +100,40 @@ export function contentDisposition(fileName: string): string {
   const ascii = fileName.replace(/[^\x20-\x7e]/g, "_").replace(/["\\]/g, "_");
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
+
+/**
+ * The most one "Download selected" zip may hold. The zip is built in the
+ * browser's memory, and phones run out well before computers do.
+ */
+export const ZIP_MAX_BYTES = 1024 * 1024 * 1024;
+
+export type DownloadPlan = {
+  /** IDs of the files that go into the zip. */
+  include: string[];
+  totalBytes: number;
+  /** Large files (videos) that open in Google Drive instead. */
+  tooLarge: number;
+  /** Files the person may look at but not download. */
+  notAllowed: number;
+  /** True when the rest is still too big for one zip. */
+  overLimit: boolean;
+};
+
+/** What a "Download selected" would contain. */
+export function planDownload(
+  items: { id: string; sizeBytes: number; canDownload: boolean }[],
+): DownloadPlan {
+  let totalBytes = 0;
+  let tooLarge = 0;
+  let notAllowed = 0;
+  const include: string[] = [];
+  for (const item of items) {
+    if (!item.canDownload) notAllowed += 1;
+    else if (item.sizeBytes > DIRECT_DOWNLOAD_MAX_BYTES) tooLarge += 1;
+    else {
+      include.push(item.id);
+      totalBytes += item.sizeBytes;
+    }
+  }
+  return { include, totalBytes, tooLarge, notAllowed, overLimit: totalBytes > ZIP_MAX_BYTES };
+}
