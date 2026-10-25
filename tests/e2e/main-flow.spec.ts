@@ -285,4 +285,30 @@ test("create a service, upload a photo, and see it in the gallery", async ({
   expect(gone.data).toHaveLength(0);
   const orphans = await admin.from("uploads").select("id").eq("service_id", serviceId);
   expect(orphans.data).toHaveLength(0);
+
+  // ── Remove a person completely ──
+  const leavingEmail = `e2e-leaving-${Date.now()}@example.com`;
+  expect((await admin.from("invites").insert({ email: leavingEmail, role: "member" })).error).toBeNull();
+  const leaving = await admin.auth.admin.createUser({
+    email: leavingEmail,
+    password: randomBytes(18).toString("base64url"),
+    email_confirm: true,
+    user_metadata: { full_name: "Leaving Volunteer" },
+  });
+  expect(leaving.error, "creating the person to remove").toBeNull();
+  const leavingId = leaving.data.user?.id ?? "";
+
+  await page.goto("/admin/people");
+  await page.getByRole("button", { name: "Open Leaving Volunteer" }).click();
+  const panel = page.getByRole("dialog", { name: "Leaving Volunteer" });
+  await panel.getByLabel("Type Leaving Volunteer to confirm").fill("Leaving Volunteer");
+  await panel.getByRole("button", { name: "Remove for good" }).click();
+  await expect(panel.getByText("Leaving Volunteer has been removed.")).toBeVisible({ timeout: 15_000 });
+
+  const profile = await admin.from("profiles").select("id").eq("id", leavingId);
+  expect(profile.data).toHaveLength(0);
+  const account = await admin.auth.admin.getUserById(leavingId);
+  expect(account.data.user, "the sign-in account is gone").toBeNull();
+  const invite = await admin.from("invites").select("email").eq("email", leavingEmail);
+  expect(invite.data, "they cannot sign back in").toHaveLength(0);
 });

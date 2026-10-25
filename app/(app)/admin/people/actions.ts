@@ -6,6 +6,7 @@ import { requireManager } from "@/lib/regions";
 import { BATCH_INVITE_MAX, isRole, normalizeEmail, parseEmailList } from "@/lib/domain/roles";
 import { revokeDriveGrants } from "@/lib/google/grants";
 import type { FormState } from "@/lib/form-state";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const UNIQUE_VIOLATION = "23505";
@@ -277,4 +278,62 @@ export async function updateInvite(
 
   revalidatePath("/admin/people");
   return { success: "Invite updated." };
+}
+
+/**
+ * Removes someone for good: their account, regions, teams, assignments and
+ * Drive access. Their uploads stay in the gallery without their name, and
+ * their invite is deleted so they cannot sign back in. Super admins only.
+ */
+export async function removePerson(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const admin = await requireAdmin();
+
+  const id = formData.get("id");
+  if (typeof id !== "string" || !id) return { error: "Person not found." };
+  if (id === admin.id) return { error: "You cannot remove yourself. Ask another admin." };
+
+  const supabase = await createClient();
+  const { data: person } = await supabase
+    .from("profiles")
+    .select("id, email, full_name, role, active")
+    .eq("id", id)
+    .maybeSingle();
+  if (!person) return { error: "That person has already been removed." };
+
+  const typed = formData.get("confirm_name");
+  if (typeof typed !== "string" || typed.trim() !== person.full_name.trim()) {
+    return { error: `Type their name exactly (${person.full_name}) to confirm.` };
+  }
+
+  if (person.role === "admin" && person.active) {
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin")
+      .eq("active", true);
+    if ((count ?? 0) <= 1) return { error: "There must be at least one active admin." };
+  }
+
+  // Their own Google account was given access to some Drive folders: take it
+  // back while we still know which.
+  await revokeDriveGrants(id);
+
+  // Without an invite they cannot sign in again and be recreated.
+  const server = createAdminClient();
+  const { error: inviteError } = await server.from("invites").delete().eq("email", person.email);
+  if (inviteError) return { error: GENERIC_ERROR };
+
+  // Deleting the sign-in account deletes the profile with it; everything that
+  // pointed at them either goes too or keeps going without their name.
+  const { error } = await server.auth.admin.deleteUser(id);
+  if (error) {
+    console.error("Removing a person failed", error.message);
+    return { error: "Could not remove them. Try again." };
+  }
+
+  revalidatePath("/", "layout");
+  return { success: `${person.full_name} has been removed.` };
 }
