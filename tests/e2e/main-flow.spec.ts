@@ -303,7 +303,10 @@ test("create a service, upload a photo, and see it in the gallery", async ({
   const panel = page.getByRole("dialog", { name: "Leaving Volunteer" });
   await panel.getByLabel("Type Leaving Volunteer to confirm").fill("Leaving Volunteer");
   await panel.getByRole("button", { name: "Remove for good" }).click();
-  await expect(panel.getByText("Leaving Volunteer has been removed.")).toBeVisible({ timeout: 15_000 });
+  // Once they are gone the page refreshes without them: their card and panel go.
+  await expect(page.getByRole("button", { name: "Open Leaving Volunteer" })).toHaveCount(0, {
+    timeout: 15_000,
+  });
 
   const profile = await admin.from("profiles").select("id").eq("id", leavingId);
   expect(profile.data).toHaveLength(0);
