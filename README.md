@@ -78,7 +78,9 @@ region). Links can expire, can be view-only, and can be turned off. Admins see
 how many people opened each link, how many visits and how many downloads.
 
 **People.** Invite one person or paste a list of emails, with the same role,
-team and regions for all. Sign-in is with Google, invite only.
+team and regions for all, and change or share an invite until they sign in.
+Turn someone's access off (they can come back), or remove them for good
+(their photos stay, without their name). Sign-in is with Google, invite only.
 
 **Home page.** The service people are most likely there for, with the upload
 button one tap away; your tasks; handoffs; fresh uploads; and charts of uploads

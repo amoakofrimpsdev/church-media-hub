@@ -6,6 +6,7 @@ import {
   CancelInviteButton,
   PersonManageForm,
   PersonRegionsForm,
+  RemovePersonForm,
   type PersonRegion,
 } from "@/app/(app)/admin/people/person-manage-form";
 import { Avatar } from "@/components/ui/avatar";
@@ -248,6 +249,7 @@ function PersonTile({ person, isAdmin }: { person: PersonCard; isAdmin: boolean 
           ? "Telegram is connected, so the bot can tag them."
           : "Telegram is not connected yet. They can send /join to the bot."}
       </p>
+      {isAdmin ? <RemovePersonForm personId={person.id} personName={person.name} /> : null}
     </Modal>
   );
 }

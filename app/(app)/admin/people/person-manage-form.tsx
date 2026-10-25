@@ -3,11 +3,12 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { ROLES, ROLE_DESCRIPTIONS, ROLE_LABELS } from "@/lib/domain/roles";
 import type { Role } from "@/lib/domain/permissions";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
-import { revokeInvite, setPersonRegions, updatePerson } from "./actions";
+import { removePerson, revokeInvite, setPersonRegions, updatePerson } from "./actions";
 
 /** Inside a person's panel: change their role, or turn their access on or off. */
 export function PersonManageForm({
@@ -153,6 +154,45 @@ export function PersonRegionsForm({
       <FormMessage state={state} />
       <Button type="submit" variant="secondary" disabled={pending} className="self-start">
         Save regions
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * The last section of a person's panel: remove them for good. Typing their
+ * name is the confirmation, as for deleting a service.
+ */
+export function RemovePersonForm({ personId, personName }: { personId: string; personName: string }) {
+  const [state, action, pending] = useActionState(removePerson, EMPTY_FORM_STATE);
+
+  if (state.success) {
+    return (
+      <p role="status" className="rounded-md bg-success-soft p-3 text-body-sm text-success">
+        {state.success}
+      </p>
+    );
+  }
+
+  return (
+    <form action={action} className="flex flex-col gap-3 border-t border-hairline pt-4">
+      <input type="hidden" name="id" value={personId} />
+      <h3 className="text-label text-danger uppercase">Remove completely</h3>
+      <p className="text-caption text-muted">
+        Deletes {personName}&apos;s account, regions, teams and assignments, and takes back
+        their Drive access. Their photos and videos stay in the gallery, without their name.
+        This cannot be undone; to bring them back you would invite them again. If they may
+        return, turn their access off instead.
+      </p>
+      <Input
+        label={`Type ${personName} to confirm`}
+        name="confirm_name"
+        autoComplete="off"
+        required
+      />
+      <FormMessage state={state} />
+      <Button type="submit" variant="danger" size="sm" disabled={pending} className="self-start">
+        {pending ? "Removing…" : "Remove for good"}
       </Button>
     </form>
   );
