@@ -29,6 +29,8 @@ export type ScheduleData = {
   series: SeriesCard[];
   /** Regions a new repeating service can be added to. */
   regions: { id: string; name: string }[];
+  /** Every active region, for joint repeating services. */
+  allRegions?: { id: string; name: string }[];
   jobs: {
     /** "Mon, Oct 13, 7:15 AM", or null if the jobs have never run. */
     lastRanLabel: string | null;
@@ -174,7 +176,7 @@ export function ScheduleView({ data }: { data: ScheduleData }) {
                 </>
               }
             >
-              <SeriesForm regions={data.regions} />
+              <SeriesForm regions={data.regions} allRegions={data.allRegions} />
             </Modal>
           </li>
         </ul>

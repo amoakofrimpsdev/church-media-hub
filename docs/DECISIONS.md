@@ -1116,3 +1116,28 @@ the live site and database as a stranger would.
 which fetches it from Google. Browsers keep them for a day, and Vercel's free
 plan allows a million calls a month, so it is fine at the church's size; if
 it ever approaches the limit, longer browser caching is the first lever.
+
+## Joint services, and merging duplicates
+
+**Choice:** A service (or repeating service) has one main region and can be
+"also for" others (`shared_region_ids`). People in any of them see it and can
+upload; the main region's admins run it and its Drive holds the files. Its
+"Today" post and "who uploaded what" list go to each region's group;
+reminders and late handoffs go to the main region's group, and handoff alerts
+tag the receiving team's members from every region it is for.
+
+Merging moves a duplicate into another service from the Edit page: each file
+is moved in Drive into the kept service's folder for its category, and its
+record moved straight after, so a merge cut short by Drive can simply be run
+again. Then `merge_service_records()` joins assignments (the same person in the
+same role becomes one, with tasks done in either kept done), carries over
+handoffs a team already confirmed, points share links at the kept service,
+adds the duplicate's region to "also for", stops a repeating schedule
+recreating the duplicate, and deletes it. Services in different Google
+accounts cannot be merged: Drive cannot move files between accounts.
+
+**Why:** Combined services across regions happen, and a joint service keeps
+one set of photos instead of copies per region. Keeping a single main region
+keeps "who runs it" and "whose Drive" unambiguous. Merging is for the common
+mistake of creating a service twice; moving files rather than copying keeps
+storage the same and links working.

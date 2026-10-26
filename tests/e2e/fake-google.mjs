@@ -160,6 +160,10 @@ const server = createServer(async (request, response) => {
         const body = JSON.parse((await readBody(request)).toString() || "{}");
         if (typeof body.name === "string") file.name = body.name;
         if (typeof body.trashed === "boolean") file.trashed = body.trashed;
+        const add = url.searchParams.get("addParents");
+        const remove = url.searchParams.get("removeParents");
+        if (remove) file.parents = file.parents.filter((parent) => !remove.split(",").includes(parent));
+        if (add) file.parents.push(...add.split(","));
         return json(response, 200, { id: file.id });
       }
     }

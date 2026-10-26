@@ -66,7 +66,9 @@ photos at once as a single ZIP, built in the browser.
 
 **Services and schedule.** One-off services, or repeating ones every week,
 every other week, or every 3 or 4 weeks (for example a women's and a men's
-midweek service on alternate Wednesdays).
+midweek service on alternate Wednesdays). A service can be **joint**, for several
+regions at once (a combined service), and a service created twice can be
+**merged** into the other: photos, assignments and share links move over.
 
 **Assignments and handoffs.** Who covers what at each service, what is still
 missing, and what each receiving team is waiting for. A category is ready when

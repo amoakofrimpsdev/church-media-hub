@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
+import { AlsoForRegions } from "@/components/ui/also-for";
 import { Input } from "@/components/ui/input";
 import { RegionSelect, type RegionOption } from "@/components/ui/region-select";
 import { Select } from "@/components/ui/select";
@@ -18,7 +19,14 @@ function nextDateOn(weekday: number): string {
   return `${day.getFullYear()}-${month}-${String(day.getDate()).padStart(2, "0")}`;
 }
 
-export function SeriesForm({ regions }: { regions: RegionOption[] }) {
+export function SeriesForm({
+  regions,
+  allRegions = [],
+}: {
+  regions: RegionOption[];
+  /** Every active region, for "Also for". */
+  allRegions?: RegionOption[];
+}) {
   const [state, action, pending] = useActionState(createSeries, EMPTY_FORM_STATE);
   const [weekday, setWeekday] = useState(0);
   const [interval, setInterval] = useState("1");
@@ -81,6 +89,7 @@ export function SeriesForm({ regions }: { regions: RegionOption[] }) {
           these, every other week, starting a week apart.
         </p>
       )}
+      {allRegions.length > 1 ? <AlsoForRegions regions={allRegions} /> : null}
       <FormMessage state={state} />
       <Button type="submit" disabled={pending} className="tablet:self-start">
         {pending ? "Adding…" : "Add"}
