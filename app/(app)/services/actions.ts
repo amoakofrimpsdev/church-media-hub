@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { requireProfile } from "@/lib/auth";
-import { managesService, pickRegion, requireManager } from "@/lib/regions";
+import { readAlsoFor } from "@/components/ui/also-for";
+import { getAllRegions, managesService, pickRegion, requireManager } from "@/lib/regions";
 import { churchLocalToUtc, serviceFolderName } from "@/lib/domain/time";
 import { getDriveSession } from "@/lib/google/connection";
 import { DriveError, moveToBin, renameFile } from "@/lib/google/drive";
@@ -14,6 +15,7 @@ import {
   sendUploadReminder,
 } from "@/lib/notifications/telegram";
 import { ensureServiceFolders } from "@/lib/services/folders";
+import { mergeServices } from "@/lib/services/merge";
 import { createClient } from "@/lib/supabase/server";
 
 function text(formData: FormData, name: string): string {
@@ -44,6 +46,11 @@ export async function createService(
       starts_at: startsAt.toISOString(),
       created_by: admin.id,
       region_id: region.id,
+      shared_region_ids: readAlsoFor(
+        formData,
+        (await getAllRegions()).map((entry) => entry.id),
+        region.id,
+      ),
     })
     .select("id")
     .single();
@@ -111,9 +118,23 @@ export async function updateService(
   if (!startsAt) return { error: "Choose a valid date and time." };
 
   const supabase = await createClient();
+  const { data: current } = await supabase
+    .from("services")
+    .select("region_id")
+    .eq("id", serviceId)
+    .maybeSingle();
+  if (!current) return { error: "Service not found." };
   const { data: service, error } = await supabase
     .from("services")
-    .update({ name, starts_at: startsAt.toISOString() })
+    .update({
+      name,
+      starts_at: startsAt.toISOString(),
+      shared_region_ids: readAlsoFor(
+        formData,
+        (await getAllRegions()).map((entry) => entry.id),
+        current.region_id,
+      ),
+    })
     .eq("id", serviceId)
     .select("drive_folder_id, drive_region_id")
     .maybeSingle();
@@ -423,4 +444,29 @@ export async function setHandoffReceived(
   if (serviceId) refreshService(serviceId);
   else revalidatePath("/handoffs");
   return {};
+}
+
+/**
+ * Merges a duplicate service into this one: its photos, videos, assignments
+ * and share links move over, then the duplicate is deleted. The person must
+ * run both services' regions.
+ */
+export async function mergeService(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireManager();
+  const keepId = text(formData, "service_id");
+  const mergeId = text(formData, "merge_id");
+  if (!keepId || !mergeId) return { error: "Choose the service to merge in." };
+  if (keepId === mergeId) return { error: "Choose a different service to merge in." };
+  if (!(await managesService(keepId)) || !(await managesService(mergeId))) {
+    return { error: "You can only merge services in regions you run." };
+  }
+
+  const result = await mergeServices(keepId, mergeId);
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath("/", "layout");
+  redirect(`/services/${keepId}`);
 }

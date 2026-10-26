@@ -286,6 +286,22 @@ export async function renameFile(
   });
 }
 
+/** Moves a file from one folder to another, in the same Google account. */
+export async function moveFile(
+  accessToken: string,
+  fileId: string,
+  fromFolderId: string,
+  toFolderId: string,
+): Promise<void> {
+  const params = new URLSearchParams({ addParents: toFolderId, fields: "id" });
+  if (fromFolderId) params.set("removeParents", fromFolderId);
+  await driveFetch(accessToken, `${filesUrl()}/${encodeURIComponent(fileId)}?${params}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+}
+
 /** Moves a file or folder to the Drive bin, where it can be restored for 30 days. */
 export async function moveToBin(accessToken: string, fileId: string): Promise<void> {
   await driveFetch(accessToken, `${filesUrl()}/${encodeURIComponent(fileId)}?fields=id`, {

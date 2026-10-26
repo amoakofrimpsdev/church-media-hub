@@ -134,6 +134,7 @@ export type Database = {
           series_slot: string | null;
           region_id: string;
           drive_region_id: string | null;
+          shared_region_ids: string[];
         };
         Insert: {
           name: string;
@@ -142,12 +143,14 @@ export type Database = {
           series_id?: string | null;
           series_slot?: string | null;
           region_id?: string;
+          shared_region_ids?: string[];
         };
         Update: {
           name?: string;
           starts_at?: string;
           region_id?: string;
           drive_region_id?: string | null;
+          shared_region_ids?: string[];
           drive_folder_id?: string | null;
           drive_folder_status?: DriveFolderStatus;
           drive_error?: string | null;
@@ -166,6 +169,7 @@ export type Database = {
           interval_weeks: number;
           anchor_date: string | null;
           region_id: string;
+          shared_region_ids: string[];
         };
         Insert: {
           name: string;
@@ -175,6 +179,7 @@ export type Database = {
           interval_weeks?: number;
           anchor_date?: string | null;
           region_id?: string;
+          shared_region_ids?: string[];
         };
         Update: { name?: string; active?: boolean };
         Relationships: [];
@@ -242,6 +247,7 @@ export type Database = {
         };
         // Only the server (secret key) updates uploads.
         Update: {
+          service_id?: string;
           drive_file_id?: string | null;
           size_bytes?: number;
           status?: UploadStatus;
@@ -560,6 +566,10 @@ export type Database = {
       };
       record_share_view: {
         Args: { p_share_id: string; p_visitor_id?: string | null };
+        Returns: undefined;
+      };
+      merge_service_records: {
+        Args: { p_keep: string; p_merge: string };
         Returns: undefined;
       };
       record_share_download: {

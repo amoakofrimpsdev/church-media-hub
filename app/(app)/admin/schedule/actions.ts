@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { pickRegion, requireManager } from "@/lib/regions";
+import { readAlsoFor } from "@/components/ui/also-for";
+import { getAllRegions, pickRegion, requireManager } from "@/lib/regions";
 import { WEEKDAYS } from "@/lib/domain/recurrence";
 import type { FormState } from "@/lib/form-state";
 import { runScheduledJobs } from "@/lib/jobs/run";
@@ -62,6 +63,11 @@ export async function createSeries(
     anchor_date: anchorDate,
     created_by: admin.id,
     region_id: region.id,
+    shared_region_ids: readAlsoFor(
+      formData,
+      (await getAllRegions()).map((entry) => entry.id),
+      region.id,
+    ),
   });
   if (error) return { error: GENERIC_ERROR };
 

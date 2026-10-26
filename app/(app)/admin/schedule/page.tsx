@@ -61,9 +61,16 @@ export default async function SchedulePage() {
               ? `from ${formatChurchDate(`${item.anchor_date}T20:00:00Z`).replace(/, \d{4}$/, "")}`
               : null,
           active: item.active,
-          regionName: severalRegions ? (regionName.get(item.region_id) ?? null) : null,
+          regionName: severalRegions
+            ? [item.region_id, ...item.shared_region_ids]
+                .flatMap((id) => regionName.get(id) ?? [])
+                .join(" + ") || null
+            : null,
         })),
         regions: managed.map(({ id, name }) => ({ id, name })),
+        allRegions: allRegions
+          .filter((region) => region.is_active)
+          .map(({ id, name }) => ({ id, name })),
         jobs: {
           lastRanLabel: lastRunAt ? formatChurchDateTime(lastRunAt) : null,
           stale:

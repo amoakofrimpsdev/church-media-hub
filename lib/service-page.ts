@@ -123,7 +123,11 @@ export async function loadServicePage(
   }
 
   const { data: regionMembers } = canManage
-    ? await supabase.from("region_members").select("profile_id").eq("region_id", regionId)
+    ? await supabase
+        .from("region_members")
+        .select("profile_id")
+        // A joint service can be covered by people from any region it is for.
+        .in("region_id", [regionId, ...service.data.shared_region_ids])
     : { data: [] };
   const regionPeople = new Set((regionMembers ?? []).map((row) => row.profile_id));
 
@@ -287,7 +291,11 @@ export async function loadServiceList(): Promise<{
     assigned: assigned.get(service.id) ?? [],
     missing: missing.get(service.id) ?? 0,
     foldersFailed: service.drive_folder_status === "failed",
-    regionName: showRegion ? (regionName.get(service.region_id) ?? null) : null,
+    regionName: showRegion
+      ? [service.region_id, ...service.shared_region_ids]
+          .flatMap((id) => regionName.get(id) ?? [])
+          .join(" + ") || null
+      : null,
   });
 
   return {

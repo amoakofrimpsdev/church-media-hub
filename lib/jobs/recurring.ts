@@ -47,6 +47,7 @@ export async function createRecurringServices(now: Date): Promise<number> {
           series_id: series.id,
           series_slot: slotIso,
           region_id: series.region_id,
+          shared_region_ids: series.shared_region_ids,
         })
         .select("id")
         .single();

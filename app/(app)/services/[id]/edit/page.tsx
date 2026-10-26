@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { requireManager } from "@/lib/regions";
-import { churchClockTime, churchIsoDate } from "@/lib/domain/time";
+import { getAllRegions, getManagedRegions, requireManager } from "@/lib/regions";
+import { MergeServiceForm } from "./merge-service-form";
+import { churchClockTime, churchIsoDate, formatChurchDateTime } from "@/lib/domain/time";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/uploads/api";
 import { DeleteServiceForm } from "./delete-service-form";
@@ -30,6 +31,52 @@ export default async function EditServicePage({
   // Only someone who runs this service's region can edit it.
   await requireManager(service.data.region_id);
   const uploadCount = uploads.count ?? 0;
+  const regionId = service.data.region_id;
+  const allRegions = await getAllRegions();
+  const regionName = new Map(allRegions.map((region) => [region.id, region.name]));
+  const otherRegions = allRegions
+    .filter((region) => region.is_active && region.id !== regionId)
+    .map(({ id, name }) => ({ id, name }));
+
+  // Likely duplicates: services in the week either side, in regions this
+  // person runs.
+  const managedIds = new Set((await getManagedRegions()).map((region) => region.id));
+  const startsAt = new Date(service.data.starts_at).getTime();
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const { data: nearby } = await supabase
+    .from("services")
+    .select("id, name, starts_at, region_id")
+    .gte("starts_at", new Date(startsAt - WEEK_MS).toISOString())
+    .lte("starts_at", new Date(startsAt + WEEK_MS).toISOString())
+    .neq("id", id)
+    .order("starts_at");
+  const candidateServices = (nearby ?? []).filter((row) => managedIds.has(row.region_id));
+  const { data: candidateUploads } =
+    candidateServices.length > 0
+      ? await supabase
+          .from("uploads")
+          .select("service_id")
+          .in("service_id", candidateServices.map((row) => row.id))
+      : { data: [] };
+  const fileCount = new Map<string, number>();
+  for (const row of candidateUploads ?? []) {
+    fileCount.set(row.service_id, (fileCount.get(row.service_id) ?? 0) + 1);
+  }
+  const candidates = candidateServices.map((row) => {
+    const files = fileCount.get(row.id) ?? 0;
+    return {
+      id: row.id,
+      name: row.name,
+      label: [
+        row.name,
+        formatChurchDateTime(row.starts_at),
+        allRegions.length > 1 ? regionName.get(row.region_id) : null,
+        `${files} ${files === 1 ? "file" : "files"}`,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    };
+  });
 
   return (
     <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
@@ -46,10 +93,22 @@ export default async function EditServicePage({
           name={service.data.name}
           date={churchIsoDate(service.data.starts_at)}
           time={churchClockTime(service.data.starts_at)}
+          otherRegions={otherRegions}
+          alsoFor={service.data.shared_region_ids}
         />
         <p className="text-body-sm text-muted">
           Changing the date moves each team&apos;s delivery deadline with it.
         </p>
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <h2 className="text-title text-ink">Merge a duplicate into this one</h2>
+        <p className="text-body-sm text-muted">
+          If the same service was created twice, bring the other one in here: its
+          photos and videos move into this service&apos;s Drive folders, with its
+          assignments and share links, and the duplicate is deleted.
+        </p>
+        <MergeServiceForm serviceId={id} serviceName={service.data.name} candidates={candidates} />
       </Card>
 
       <Card className="flex flex-col gap-3">

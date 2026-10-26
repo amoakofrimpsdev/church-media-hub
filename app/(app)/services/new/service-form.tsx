@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { FormMessage } from "@/components/ui/form-message";
+import { AlsoForRegions } from "@/components/ui/also-for";
 import { Input } from "@/components/ui/input";
 import { RegionSelect, type RegionOption } from "@/components/ui/region-select";
 import { EMPTY_FORM_STATE } from "@/lib/form-state";
@@ -12,10 +13,13 @@ export function ServiceForm({
   defaultDate,
   regions,
   defaultRegion,
+  allRegions,
 }: {
   defaultDate: string;
   regions: RegionOption[];
   defaultRegion?: string;
+  /** Every active region, for "Also for". */
+  allRegions: RegionOption[];
 }) {
   const [state, action, pending] = useActionState(
     createService,
@@ -48,6 +52,7 @@ export function ServiceForm({
           required
         />
       </div>
+      {allRegions.length > 1 ? <AlsoForRegions regions={allRegions} /> : null}
       <FormMessage state={state} />
       <Button type="submit" disabled={pending}>
         {pending ? "Creating service and folders…" : "Create service"}

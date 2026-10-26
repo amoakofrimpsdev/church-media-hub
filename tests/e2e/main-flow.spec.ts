@@ -286,6 +286,49 @@ test("create a service, upload a photo, and see it in the gallery", async ({
   const orphans = await admin.from("uploads").select("id").eq("service_id", serviceId);
   expect(orphans.data).toHaveLength(0);
 
+  // ── Merge a duplicate service ──
+  const mergeName = `E2E Merge ${Date.now()}`;
+  const newService = async () => {
+    await page.goto("/services/new");
+    await page.getByLabel("Name").fill(mergeName);
+    await page.getByRole("button", { name: "Create service" }).click();
+    await expect(page.getByRole("heading", { name: mergeName })).toBeVisible({ timeout: 30_000 });
+    return new URL(page.url()).pathname.split("/").pop() ?? "";
+  };
+  const keepId = await newService();
+  const duplicateId = await newService();
+  // A photo in the duplicate's Baptism album.
+  await page.getByRole("button", { name: "Add to Baptism" }).click();
+  await page.getByRole("dialog", { name: "Upload" }).locator('input[type="file"]').setInputFiles({
+    name: "duplicate-photo.png",
+    mimeType: "image/png",
+    buffer: PHOTO,
+  });
+  await expect(page.getByText("Uploaded", { exact: true })).toBeVisible({ timeout: 30_000 });
+
+  await page.goto(`/services/${keepId}/edit`);
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByLabel("Duplicate to merge in").selectOption({ value: duplicateId });
+  await page.getByRole("button", { name: "Merge into this service" }).click();
+  await expect(page).toHaveURL(new RegExp(`/services/${keepId}$`), { timeout: 30_000 });
+
+  const merged = await admin.from("uploads").select("drive_file_id").eq("service_id", keepId);
+  expect(merged.data, "the photo moved to the kept service").toHaveLength(1);
+  const duplicate = await admin.from("services").select("id").eq("id", duplicateId);
+  expect(duplicate.data, "the duplicate is gone").toHaveLength(0);
+  // In Drive, the file now sits in the kept service's Baptism folder.
+  const { data: baptism } = await admin.from("categories").select("id").eq("slug", "baptism").single();
+  const { data: keepFolder } = await admin
+    .from("service_folders")
+    .select("drive_folder_id")
+    .eq("service_id", keepId)
+    .eq("category_id", baptism?.id ?? "")
+    .single();
+  const driveFile = await fetch(
+    `${fakeGoogleUrl}/drive/v3/files/${merged.data?.[0].drive_file_id}?fields=parents`,
+  );
+  expect((await driveFile.json()).parents).toEqual([keepFolder?.drive_folder_id]);
+
   // ── Remove a person completely ──
   const leavingEmail = `e2e-leaving-${Date.now()}@example.com`;
   expect((await admin.from("invites").insert({ email: leavingEmail, role: "member" })).error).toBeNull();

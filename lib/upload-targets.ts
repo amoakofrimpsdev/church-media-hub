@@ -28,7 +28,7 @@ export async function loadUploadTargets(profile: Profile): Promise<UploadTargets
   const now = currentTime();
   const { data: services } = await supabase
     .from("services")
-    .select("id, name, starts_at, region_id")
+    .select("id, name, starts_at, region_id, shared_region_ids")
     .gte("starts_at", recentCutoff(now))
     .lte("starts_at", new Date(now.getTime() + 7 * DAY_MS).toISOString())
     .order("starts_at", { ascending: false })
@@ -65,7 +65,11 @@ export async function loadUploadTargets(profile: Profile): Promise<UploadTargets
       name: service.name,
       startsAt: service.starts_at,
       dateLine: [
-        showRegion ? regionName.get(service.region_id) : null,
+        showRegion
+          ? [service.region_id, ...service.shared_region_ids]
+              .flatMap((id) => regionName.get(id) ?? [])
+              .join(" + ")
+          : null,
         formatChurchDate(service.starts_at).replace(/, \d{4}$/, ""),
       ]
         .filter(Boolean)

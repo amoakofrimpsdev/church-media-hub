@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { requireManager } from "@/lib/regions";
+import { getAllRegions, requireManager } from "@/lib/regions";
 import { churchIsoDate } from "@/lib/domain/time";
 import { ServiceForm } from "./service-form";
 
@@ -38,6 +38,9 @@ export default async function NewServicePage({
           defaultDate={nextSunday()}
           regions={regions.map(({ id, name }) => ({ id, name }))}
           defaultRegion={typeof region === "string" ? region : undefined}
+          allRegions={(await getAllRegions())
+            .filter((entry) => entry.is_active)
+            .map(({ id, name }) => ({ id, name }))}
         />
       </Card>
     </div>
