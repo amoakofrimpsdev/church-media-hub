@@ -2,7 +2,7 @@ import { HardDrive, MapPin, MapPinPlus, Send, Settings2 } from "lucide-react";
 import Link from "next/link";
 import {
   switchToChurchDrive,
-  switchToMainGroup,
+  updateTelegramGroup,
   updateRegion,
 } from "@/app/(app)/admin/regions/actions";
 import { CreateRegionForm, RenameRegionForm } from "@/app/(app)/admin/regions/region-forms";
@@ -27,7 +27,13 @@ export type RegionCardData = {
     | { kind: "own"; email: string; expired: boolean };
   /** Old services still keep files in an account it no longer uses for new ones. */
   oldDriveEmail: string | null;
-  telegram: { kind: "main" } | { kind: "own"; title: string };
+  /** The region's own Telegram groups. None: it uses the church's main group. */
+  groups: {
+    id: string;
+    title: string;
+    media: "all" | "photos" | "videos";
+    handoffAlerts: boolean;
+  }[];
 };
 
 export type RegionsData = {
@@ -87,6 +93,8 @@ export function RegionsView({ data }: { data: RegionsData }) {
     </div>
   );
 }
+
+const MEDIA_LABELS = { all: "Everything", photos: "Photography", videos: "Video" } as const;
 
 const plural = (count: number, one: string, many: string) =>
   `${count} ${count === 1 ? one : many}`;
@@ -152,9 +160,13 @@ function RegionTile({
                 Church Drive
               </Badge>
             )}
-            <Badge tone={region.telegram.kind === "own" ? "success" : "neutral"}>
+            <Badge tone={region.groups.length > 0 ? "success" : "neutral"}>
               <Send aria-hidden size={11} className="mr-1" />
-              {region.telegram.kind === "own" ? "Own group" : "Main group"}
+              {region.groups.length === 0
+                ? "Main group"
+                : region.groups.length === 1
+                  ? "Own group"
+                  : `${region.groups.length} groups`}
             </Badge>
           </span>
         </>
@@ -212,26 +224,56 @@ function RegionTile({
 
       <section className="flex flex-col gap-2 border-t border-hairline pt-4">
         <h3 className="text-label text-muted uppercase">Telegram</h3>
-        {region.telegram.kind === "own" ? (
-          <>
-            <p className="text-body-sm text-ink-soft">
-              The bot posts {region.name}&apos;s services, reminders and handoffs in{" "}
-              <strong className="text-ink">{region.telegram.title}</strong>.
-            </p>
-            <ActionButton
-              action={switchToMainGroup}
-              fields={{ region_id: region.id }}
-              label="Use the main group instead"
-            />
-          </>
+        {region.groups.length > 0 ? (
+          <ul className="flex flex-col gap-2">
+            {region.groups.map((group) => (
+              <li key={group.id} className="flex flex-col gap-2 rounded-md bg-surface-soft p-3">
+                <span className="flex flex-wrap items-center gap-2">
+                  <strong className="text-body-sm text-ink">{group.title}</strong>
+                  <Badge tone="accent">{MEDIA_LABELS[group.media]}</Badge>
+                  {group.handoffAlerts ? <Badge>Handoff alerts</Badge> : null}
+                </span>
+                <span className="flex flex-wrap gap-2">
+                  {(["all", "photos", "videos"] as const)
+                    .filter((media) => media !== group.media)
+                    .map((media) => (
+                      <ActionButton
+                        key={media}
+                        action={updateTelegramGroup}
+                        fields={{ group_id: group.id, intent: "media", media }}
+                        label={`Make it ${MEDIA_LABELS[media].toLowerCase()}`}
+                        variant="ghost"
+                      />
+                    ))}
+                  <ActionButton
+                    action={updateTelegramGroup}
+                    fields={{ group_id: group.id, intent: group.handoffAlerts ? "handoffs_off" : "handoffs_on" }}
+                    label={group.handoffAlerts ? "Turn off handoff alerts" : "Turn on handoff alerts"}
+                    variant="ghost"
+                  />
+                  <ActionButton
+                    action={updateTelegramGroup}
+                    fields={{ group_id: group.id, intent: "unlink" }}
+                    label="Unlink"
+                    variant="ghost"
+                    confirmMessage={`Stop posting in ${group.title}?`}
+                  />
+                </span>
+              </li>
+            ))}
+          </ul>
         ) : (
           <p className="text-body-sm text-ink-soft">
-            Messages go to the church&apos;s main group. To give {region.name} its own:
-            add {botUsername ? `@${botUsername}` : "the bot"} to the region&apos;s group, send{" "}
-            <code className="rounded bg-surface-soft px-1">/linkgroup</code> there, open the
-            link it replies with and choose <strong className="text-ink">For {region.name}</strong>.
+            Messages go to the church&apos;s main group.
           </p>
         )}
+        <p className="text-caption text-muted">
+          To link a group (for example one for photography and one for video): add{" "}
+          {botUsername ? `@${botUsername}` : "the bot"} to it, send{" "}
+          <code className="rounded bg-surface-soft px-1">/linkgroup</code> there, open the link it
+          replies with, choose {region.name} and what the group is for. Photography groups get photo
+          upload links and tag photographers; video groups tag videographers.
+        </p>
       </section>
 
       <section className="flex flex-col gap-2 border-t border-hairline pt-4">

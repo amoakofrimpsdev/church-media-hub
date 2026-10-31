@@ -1141,3 +1141,22 @@ one set of photos instead of copies per region. Keeping a single main region
 keeps "who runs it" and "whose Drive" unambiguous. Merging is for the common
 mistake of creating a service twice; moving files rather than copying keeps
 storage the same and links working.
+
+## Several Telegram groups per region: photography, video, everything
+
+**Choice:** A region can link several Telegram groups (`region_telegram_groups`),
+each marked Photography, Video or Everything, with handoff alerts on or off.
+A photography group gets "📸 Today… upload your photos", photo reminders and
+the list of photos uploaded, tagging only people assigned as Photographer; a
+video group the same for videos and Videographers. Roles with no kind
+(Editor) appear in both. Handoff alerts go only to groups that have them on.
+A region with no groups of its own still uses the church's main group. Each
+region's existing group became an Everything group.
+
+**Why:** Congregational runs separate groups for photography, video and
+Instagram. Splitting by category does not work because the video team films
+every category too; splitting by kind of media matches how the teams work.
+The routing rules live in `lib/domain/telegram-groups.ts`, pure and tested.
+The first group keeps the old "send once" keys, so nothing is posted twice
+when this goes live. What the Instagram group gets is still to decide; for
+now it can be an Everything group with handoff alerts, or have them off.

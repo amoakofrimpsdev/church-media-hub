@@ -99,21 +99,41 @@ export async function switchToChurchDrive(
   };
 }
 
-/** The region's messages go back to the church's main Telegram group. */
-export async function switchToMainGroup(
+/**
+ * Changes one of a region's Telegram groups: what it is for, whether it gets
+ * handoff alerts, or unlinks it. With no groups left, the region's messages
+ * go to the church's main group.
+ */
+export async function updateTelegramGroup(
   _previous: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const id = text(formData, "region_id");
-  if (!isUuid(id)) return { error: "Region not found." };
-  await requireManager(id);
+  const id = text(formData, "group_id");
+  if (!isUuid(id)) return { error: "Group not found." };
+  // Groups are server-only, so this uses the secret key after checking.
+  const server = createAdminClient();
+  const { data: group } = await server
+    .from("region_telegram_groups")
+    .select("region_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!group) return { error: "That group was already unlinked." };
+  await requireManager(group.region_id);
 
-  // Telegram columns are server-only, so this uses the secret key.
-  const { error } = await createAdminClient()
-    .from("regions")
-    .update({ telegram_chat_id: null, telegram_chat_title: null, telegram_linked_at: null })
-    .eq("id", id);
+  const intent = text(formData, "intent");
+  const media = text(formData, "media");
+  const { error } =
+    intent === "unlink"
+      ? await server.from("region_telegram_groups").delete().eq("id", id)
+      : intent === "media" && (media === "all" || media === "photos" || media === "videos")
+        ? await server.from("region_telegram_groups").update({ media }).eq("id", id)
+        : intent === "handoffs_on" || intent === "handoffs_off"
+          ? await server
+              .from("region_telegram_groups")
+              .update({ handoff_alerts: intent === "handoffs_on" })
+              .eq("id", id)
+          : { error: { message: "unknown" } };
   if (error) return { error: GENERIC_ERROR };
   refresh();
-  return { success: "This region's messages now go to the main group." };
+  return { success: intent === "unlink" ? "Unlinked." : "Saved." };
 }

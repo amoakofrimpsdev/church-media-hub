@@ -67,27 +67,35 @@ export async function confirmTelegramLink(
   }
 
   if (link.kind === "group" && link.telegramChatId !== null && region) {
-    // A group belongs to one region at a time.
-    await admin
-      .from("regions")
-      .update({ telegram_chat_id: null, telegram_chat_title: null, telegram_linked_at: null })
-      .eq("telegram_chat_id", link.telegramChatId)
-      .neq("id", region.id);
-    const { error } = await admin
-      .from("regions")
-      .update({
-        telegram_chat_id: link.telegramChatId,
-        telegram_chat_title: link.displayName,
-        telegram_linked_at: new Date().toISOString(),
-      })
-      .eq("id", region.id);
+    const mediaChoice = formData.get("media");
+    const media = mediaChoice === "photos" || mediaChoice === "videos" ? mediaChoice : "all";
+    const handoffAlerts = formData.get("handoff_alerts") === "on";
+    // One row per chat: linking a group again moves it or changes what it is for.
+    const { error } = await admin.from("region_telegram_groups").upsert(
+      {
+        region_id: region.id,
+        chat_id: link.telegramChatId,
+        title: link.displayName,
+        media,
+        handoff_alerts: handoffAlerts,
+        linked_by: profile.id,
+        linked_at: new Date().toISOString(),
+      },
+      { onConflict: "chat_id" },
+    );
     if (error) return { error: "Could not save. Try again." };
 
+    const what =
+      media === "photos"
+        ? `${region.name}'s photo upload links, photo reminders and the list of photos uploaded`
+        : media === "videos"
+          ? `${region.name}'s video upload links, video reminders and the list of videos uploaded`
+          : `${region.name}'s services, upload reminders and uploads`;
     await sendMessage(
       link.telegramChatId,
-      `✅ This group is now linked to RCW Media for ${region.name}. I will post ${region.name}'s services, upload reminders and handoffs here.\n\nEveryone: send me /join in a private chat so I can tag you.`,
+      `✅ This group is now linked to RCW Media. I will post ${what} here${handoffAlerts ? ", and handoff alerts" : ""}.\n\nEveryone: send me /join in a private chat so I can tag you.`,
     );
-    revalidatePath("/admin/telegram");
+    revalidatePath("/admin/regions");
     return { success: `Group linked for ${region.name}. The bot has posted a confirmation there.` };
   }
 

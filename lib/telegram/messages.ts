@@ -7,6 +7,8 @@
  * or inject formatting.
  */
 
+import type { GroupMedia } from "@/lib/domain/telegram-groups";
+
 export function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -44,6 +46,13 @@ export function joinList(items: string[]): string {
 
 type ServiceInfo = { name: string; date: string; url: string };
 
+
+const MEDIA_WORDING: Record<GroupMedia, { icon: string; noun: string; title: string }> = {
+  all: { icon: "📸", noun: "photos and videos", title: "Uploads" },
+  photos: { icon: "📸", noun: "photos", title: "Photos" },
+  videos: { icon: "🎥", noun: "videos", title: "Videos" },
+};
+
 export type CoveringPerson = Recipient & {
   /** Categories they are down to upload today. */
   categories: string[];
@@ -56,10 +65,12 @@ export type CoveringPerson = Recipient & {
 export function serviceDayMessage(
   service: ServiceInfo & { time: string },
   covering: CoveringPerson[],
+  media: GroupMedia = "all",
 ): string {
+  const wording = MEDIA_WORDING[media];
   const lines = [
-    `📸 <b>Today: ${escapeHtml(service.name)}</b>, ${escapeHtml(service.time)}`,
-    `Upload photos and videos here: ${link("open the service", service.url)}`,
+    `${wording.icon} <b>Today: ${escapeHtml(service.name)}</b>, ${escapeHtml(service.time)}`,
+    `Upload ${wording.noun} here: ${link("open the service", service.url)}`,
   ];
   if (covering.length > 0) {
     lines.push(
@@ -90,12 +101,14 @@ export type ReminderTarget = Recipient & {
 export function uploadReminderMessage(
   service: ServiceInfo,
   targets: ReminderTarget[],
+  media: GroupMedia = "all",
 ): string | null {
   const owing = targets.filter((target) => target.categories.length > 0);
   if (owing.length === 0) return null;
 
+  const what = media === "all" ? "Still to upload" : `Still to upload ${MEDIA_WORDING[media].noun}`;
   return [
-    `⏰ Still to upload for <b>${escapeHtml(service.name)}</b>, ${escapeHtml(service.date)}:`,
+    `⏰ ${what} for <b>${escapeHtml(service.name)}</b>, ${escapeHtml(service.date)}:`,
     ...owing.map(
       (target) =>
         `• ${mention(target)}: ${escapeHtml(joinList(target.categories))}`,
@@ -119,10 +132,12 @@ export type UploadSummaryEntry = {
 export function uploadSummaryMessage(
   service: ServiceInfo,
   entries: UploadSummaryEntry[],
+  media: GroupMedia = "all",
 ): string | null {
   if (entries.length === 0) return null;
+  const heading = media === "all" ? "📤 Uploads" : `${MEDIA_WORDING[media].icon} ${MEDIA_WORDING[media].title}`;
   return [
-    `📤 Uploads for <b>${escapeHtml(service.name)}</b>, ${escapeHtml(service.date)}`,
+    `${heading} for <b>${escapeHtml(service.name)}</b>, ${escapeHtml(service.date)}`,
     ...entries.map(
       (entry) =>
         `✅ ${escapeHtml(entry.name)} uploaded ${escapeHtml(entry.files)} to ${escapeHtml(entry.categoryName)}`,

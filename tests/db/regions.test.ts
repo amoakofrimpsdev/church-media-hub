@@ -263,7 +263,7 @@ describe("region admins", () => {
     await expect(db.as(ocAdmin, "insert into public.regions (name) values ('Rogue')")).rejects.toThrow(
       /row-level security/,
     );
-    await expect(db.as(ocAdmin, "select telegram_chat_id from public.regions")).rejects.toThrow(
+    await expect(db.as(ocAdmin, "select church_folder_id from public.regions")).rejects.toThrow(
       /permission denied/,
     );
   });

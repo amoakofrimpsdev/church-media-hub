@@ -37,8 +37,11 @@ export default async function RegionsPage({ searchParams }: PageProps<"/admin/re
       .from("services")
       .select("region_id")
       .gte("starts_at", currentTime().toISOString()),
-    // Which group each region posts to is server-only.
-    createAdminClient().from("regions").select("id, telegram_chat_title, telegram_chat_id"),
+    // Which groups each region posts to is server-only.
+    createAdminClient()
+      .from("region_telegram_groups")
+      .select("id, region_id, title, media, handoff_alerts")
+      .order("linked_at"),
     getRegionGoogleSummaries(),
     getMe(),
   ]);
@@ -46,7 +49,7 @@ export default async function RegionsPage({ searchParams }: PageProps<"/admin/re
   const personName = new Map(
     (people.data ?? []).filter((person) => person.active).map((person) => [person.id, person.full_name]),
   );
-  const groups = new Map((telegram.data ?? []).map((row) => [row.id, row]));
+  const groupRows = telegram.data ?? [];
 
   const cards: RegionCardData[] = all
     // Overall admins see every region (retired ones too); region admins see theirs.
@@ -56,7 +59,6 @@ export default async function RegionsPage({ searchParams }: PageProps<"/admin/re
         (row) => row.region_id === region.id && personName.has(row.profile_id),
       );
       const own = google.get(region.id);
-      const group = groups.get(region.id);
       return {
         id: region.id,
         name: region.name,
@@ -71,9 +73,14 @@ export default async function RegionsPage({ searchParams }: PageProps<"/admin/re
             ? { kind: "own", email: own.accountEmail, expired: own.status === "expired" }
             : { kind: "church" },
         oldDriveEmail: own && !own.forNewServices ? own.accountEmail : null,
-        telegram: group?.telegram_chat_id
-          ? { kind: "own", title: group.telegram_chat_title ?? "its own group" }
-          : { kind: "main" },
+        groups: groupRows
+          .filter((row) => row.region_id === region.id)
+          .map((row) => ({
+            id: row.id,
+            title: row.title,
+            media: row.media,
+            handoffAlerts: row.handoff_alerts,
+          })),
       };
     });
 

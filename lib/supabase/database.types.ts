@@ -264,7 +264,7 @@ export type Database = {
         ];
       };
       duty_roles: {
-        Row: { id: string; name: string; sort_order: number };
+        Row: { id: string; name: string; sort_order: number; media: "photos" | "videos" | null };
         Insert: { name: string; sort_order?: number };
         Update: { name?: string; sort_order?: number };
         Relationships: [];
@@ -465,9 +465,6 @@ export type Database = {
           sort_order: number;
           is_active: boolean;
           church_folder_id: string | null;
-          telegram_chat_id: number | null;
-          telegram_chat_title: string | null;
-          telegram_linked_at: string | null;
           created_at: string;
         };
         Insert: { name: string; sort_order?: number };
@@ -476,9 +473,37 @@ export type Database = {
           sort_order?: number;
           is_active?: boolean;
           church_folder_id?: string | null;
-          telegram_chat_id?: number | null;
-          telegram_chat_title?: string | null;
-          telegram_linked_at?: string | null;
+        };
+        Relationships: [];
+      };
+      // Readable only with the secret key. See lib/notifications/telegram.ts.
+      region_telegram_groups: {
+        Row: {
+          id: string;
+          region_id: string;
+          chat_id: number;
+          title: string;
+          media: "all" | "photos" | "videos";
+          handoff_alerts: boolean;
+          linked_by: string | null;
+          linked_at: string;
+        };
+        Insert: {
+          region_id: string;
+          chat_id: number;
+          title: string;
+          media?: "all" | "photos" | "videos";
+          handoff_alerts?: boolean;
+          linked_by?: string | null;
+          linked_at?: string;
+        };
+        Update: {
+          region_id?: string;
+          title?: string;
+          media?: "all" | "photos" | "videos";
+          handoff_alerts?: boolean;
+          linked_by?: string | null;
+          linked_at?: string;
         };
         Relationships: [];
       };
