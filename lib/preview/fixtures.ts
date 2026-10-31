@@ -502,7 +502,11 @@ export const previewRegions: RegionsData = {
       admins: ["Grace Mensah"],
       drive: { kind: "church" },
       oldDriveEmail: null,
-      telegram: { kind: "own", title: "Metro Heights Media" },
+      groups: [
+        { id: "tg1", title: "Metro Heights Photography", media: "photos", handoffAlerts: false },
+        { id: "tg2", title: "Metro Heights Video", media: "videos", handoffAlerts: false },
+        { id: "tg3", title: "Metro Heights Insta", media: "all", handoffAlerts: true },
+      ],
     },
     {
       id: "g2",
@@ -513,7 +517,7 @@ export const previewRegions: RegionsData = {
       admins: ["Kofi Asante"],
       drive: { kind: "own", email: "oc.media@gmail.com", expired: false },
       oldDriveEmail: null,
-      telegram: { kind: "main" },
+      groups: [],
     },
     {
       id: "g3",
@@ -524,7 +528,7 @@ export const previewRegions: RegionsData = {
       admins: [],
       drive: { kind: "church" },
       oldDriveEmail: null,
-      telegram: { kind: "main" },
+      groups: [],
     },
   ],
 };

@@ -206,3 +206,28 @@ describe("uploadSummaryMessage", () => {
     expect(uploadSummaryMessage(service, [])).toBeNull();
   });
 });
+
+describe("messages for a photography or video group", () => {
+  const service = { name: "Sunday Service", date: "Sun, Oct 12", url: "https://app.test/services/1", time: "10:00 AM" };
+
+  it("asks the photography group for photos and the video group for videos", () => {
+    expect(serviceDayMessage(service, [], "photos")).toContain("📸 <b>Today: Sunday Service</b>");
+    expect(serviceDayMessage(service, [], "photos")).toContain("Upload photos here");
+    expect(serviceDayMessage(service, [], "videos")).toContain("🎥 <b>Today: Sunday Service</b>");
+    expect(serviceDayMessage(service, [], "videos")).toContain("Upload videos here");
+    expect(serviceDayMessage(service, [])).toContain("Upload photos and videos here");
+  });
+
+  it("says which kind of upload is still owed", () => {
+    const owing = [{ name: "Kofi", telegramUserId: null, categories: ["Baptism"] }];
+    expect(uploadReminderMessage(service, owing, "videos")).toContain("⏰ Still to upload videos for");
+    expect(uploadReminderMessage(service, owing)).toContain("⏰ Still to upload for");
+  });
+
+  it("titles the uploads list by kind", () => {
+    const entries = [{ name: "Grace", categoryName: "Baptism", files: "24 photos" }];
+    expect(uploadSummaryMessage(service, entries, "photos")).toContain("📸 Photos for <b>Sunday Service</b>");
+    expect(uploadSummaryMessage(service, entries, "videos")).toContain("🎥 Videos for");
+    expect(uploadSummaryMessage(service, entries)).toContain("📤 Uploads for");
+  });
+});

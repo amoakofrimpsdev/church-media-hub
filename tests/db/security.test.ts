@@ -16,6 +16,7 @@ const SERVER_ONLY = [
   "google_connection",
   "notification_log",
   "region_google_connections",
+  "region_telegram_groups",
   "share_file_grants",
   "share_visitors",
   "telegram_link_tokens",
@@ -83,11 +84,11 @@ describe("every table", () => {
     expect(leaked).toEqual([]);
   });
 
-  it("keeps the private columns of regions (Drive folder, Telegram group) from signed-in people", async () => {
+  it("keeps the private columns of regions (Drive folder) from signed-in people", async () => {
     const [{ id: admin }] = await db.admin<{ id: string }>(
       "select id from public.profiles where role = 'admin' and active limit 1",
     );
-    for (const column of ["church_folder_id", "telegram_chat_id", "telegram_chat_title"]) {
+    for (const column of ["church_folder_id"]) {
       await expect(db.as(admin, `select ${column} from public.regions`), column).rejects.toThrow(
         /permission denied/,
       );

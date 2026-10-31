@@ -7,6 +7,7 @@ import {
   reminderDueAt,
   serviceDayPostAt,
 } from "@/lib/domain/reminders";
+import { countsFor, roleFits, routeService, type GroupMedia } from "@/lib/domain/telegram-groups";
 import {
   countFiles,
   summarizeUploads,
@@ -39,77 +40,103 @@ const UNIQUE_VIOLATION = "23505";
 const SWEEP_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 /**
- * Where a region's messages go. `label` is the region's name when it shares
- * the church's main group with other regions, so "Sunday Service" says whose.
+ * One Telegram group the bot posts to. `label` is the region's name when it
+ * shares the church's main group with other regions, so "Sunday Service"
+ * says whose. `media` says what the group is for: a photography group, a
+ * video group, or everything.
  */
-type Group = { chatId: number; linkedAt: Date; label: string | null };
+type Group = {
+  chatId: number;
+  linkedAt: Date;
+  label: string | null;
+  media: GroupMedia;
+  handoffAlerts: boolean;
+};
+
+/** A group to post to, and the suffix that keeps its "send once" key apart. */
+type Target = { group: Group; suffix: string };
 
 type Groups = {
-  forRegion: (regionId: string) => Group | null;
   /**
-   * Every group a service's posts go to: its main region's first, then those
-   * of the other regions a joint service is for (each chat once). `suffix`
-   * keeps each group's "send once" key apart; the main group's is "".
+   * The groups a service's posts go to: its main region's groups, then those
+   * of the other regions a joint service is for (each chat once). "media"
+   * posts (upload link, reminders, uploads list) go to every group; "handoffs"
+   * only to groups with handoff alerts on. The very first group's key suffix
+   * is "", so keys from before groups existed still count.
    */
-  forService: (service: { region_id: string; shared_region_ids: string[] }) => {
-    group: Group;
-    suffix: string;
-  }[];
+  forService: (
+    service: { region_id: string; shared_region_ids: string[] },
+    purpose: "media" | "handoffs",
+  ) => Target[];
   /** The earliest time any group was linked. */
   earliestLinkedAt: Date;
 };
 
 /**
- * Each region posts to its own Telegram group if it linked one, otherwise to
- * the church's main group. Null when there is nowhere to post at all.
+ * Each region posts to its own groups if it linked any, otherwise to the
+ * church's main group. Null when there is nowhere to post at all.
  */
 async function loadGroups(): Promise<Groups | null> {
   if (!telegramBotToken()) return null;
   const admin = createAdminClient();
-  const [{ data: settings }, { data: regions }] = await Promise.all([
+  const [{ data: settings }, { data: regions }, { data: linked }] = await Promise.all([
     admin.from("app_settings").select("telegram_chat_id, telegram_linked_at").maybeSingle(),
-    admin.from("regions").select("id, name, is_active, telegram_chat_id, telegram_linked_at"),
+    admin.from("regions").select("id, name, is_active"),
+    admin
+      .from("region_telegram_groups")
+      .select("region_id, chat_id, linked_at, media, handoff_alerts")
+      .order("linked_at"),
   ]);
   const main =
     settings?.telegram_chat_id && settings.telegram_linked_at
       ? { chatId: settings.telegram_chat_id, linkedAt: new Date(settings.telegram_linked_at) }
       : null;
-  const all = regions ?? [];
-  const own = new Map<string, Group>();
-  for (const region of all) {
-    if (region.telegram_chat_id && region.telegram_linked_at) {
-      own.set(region.id, {
-        chatId: region.telegram_chat_id,
-        linkedAt: new Date(region.telegram_linked_at),
-        label: null,
-      });
-    }
+  const own = new Map<string, Group[]>();
+  for (const row of linked ?? []) {
+    const list = own.get(row.region_id) ?? [];
+    list.push({
+      chatId: row.chat_id,
+      linkedAt: new Date(row.linked_at),
+      label: null,
+      media: row.media,
+      handoffAlerts: row.handoff_alerts,
+    });
+    own.set(row.region_id, list);
   }
   if (!main && own.size === 0) return null;
 
+  const all = regions ?? [];
   const names = new Map(all.map((region) => [region.id, region.name]));
   // Regions still posting to the main group. With more than one, say whose.
   const sharing = all.filter((region) => region.is_active && !own.has(region.id)).length;
-  const linkedTimes = [...own.values(), ...(main ? [main] : [])].map((group) =>
+  const groupsOf = (regionId: string): Group[] =>
+    own.get(regionId) ??
+    (main
+      ? [
+          {
+            ...main,
+            label: sharing > 1 ? (names.get(regionId) ?? null) : null,
+            media: "all",
+            handoffAlerts: true,
+          },
+        ]
+      : []);
+  const linkedTimes = [...[...own.values()].flat(), ...(main ? [main] : [])].map((group) =>
     group.linkedAt.getTime(),
   );
-  const forRegion = (regionId: string): Group | null =>
-    own.get(regionId) ??
-    (main ? { ...main, label: sharing > 1 ? (names.get(regionId) ?? null) : null } : null);
+
   return {
-    forRegion,
-    forService: (service) => {
-      const seen = new Set<number>();
-      return [service.region_id, ...service.shared_region_ids].flatMap((regionId, index) => {
-        const group = forRegion(regionId);
-        if (!group || seen.has(group.chatId)) return [];
-        seen.add(group.chatId);
-        return [{ group, suffix: index === 0 ? "" : `:${regionId}` }];
-      });
-    },
+    forService: (service, purpose) => routeService(groupsOf, service, purpose),
     earliestLinkedAt: new Date(Math.min(...linkedTimes)),
   };
 }
+
+/** Each role's kind of media (photos, videos), by role ID. */
+async function roleMedia(): Promise<Map<string, string | null>> {
+  const { data } = await createAdminClient().from("duty_roles").select("id, media");
+  return new Map((data ?? []).map((row) => [row.id, row.media]));
+}
+
 
 /**
  * Sends a message at most once per key. The log row is inserted first; the
@@ -174,10 +201,14 @@ async function announceServiceDay(
   keySuffix = "",
 ): Promise<boolean> {
   const admin = createAdminClient();
-  const { data: assignments } = await admin
-    .from("assignments")
-    .select("id, profile_id")
-    .eq("service_id", service.id);
+  const [{ data: allAssignments }, media] = await Promise.all([
+    admin.from("assignments").select("id, profile_id, duty_role_id").eq("service_id", service.id),
+    roleMedia(),
+  ]);
+  // A photography group hears about the photographers, and so on.
+  const assignments = (allAssignments ?? []).filter((assignment) =>
+    roleFits(media.get(assignment.duty_role_id) ?? null, group),
+  );
 
   let covering: CoveringPerson[] = [];
   if (assignments && assignments.length > 0) {
@@ -220,6 +251,7 @@ async function announceServiceDay(
     serviceDayMessage(
       { ...serviceInfo(service, group), time: formatChurchTime(service.starts_at) },
       covering,
+      group.media,
     ),
   );
 }
@@ -247,7 +279,7 @@ async function postUploadSummary(
       .eq("status", "complete"),
   ]);
   if (!service) return "unchanged";
-  const targets = groups.forService(service);
+  const targets = groups.forService(service, "media");
   if (targets.length === 0) return "unchanged";
 
   const lines = summarizeUploads(
@@ -268,18 +300,26 @@ async function postUploadSummary(
   const categoryName = new Map((categories.data ?? []).map((row) => [row.id, row.name]));
   const personName = new Map((people.data ?? []).map((row) => [row.id, row.full_name]));
 
-  const entries = lines.map((line) => ({
-    name: (line.uploadedBy && personName.get(line.uploadedBy)) || "Someone",
-    categoryName: categoryName.get(line.categoryId) ?? "a category",
-    files: countFiles(line.photos, line.videos),
-  }));
+  // A photography group lists photos, a video group videos.
+  const entriesFor = (media: GroupMedia) =>
+    lines.flatMap((line) => {
+      const { photos, videos } = countsFor(media, line.photos, line.videos);
+      if (photos + videos === 0) return [];
+      return [
+        {
+          name: (line.uploadedBy && personName.get(line.uploadedBy)) || "Someone",
+          categoryName: categoryName.get(line.categoryId) ?? "a category",
+          files: countFiles(photos, videos),
+        },
+      ];
+    });
 
-  // A joint service has the same list in each region's group.
+  // A joint service has the list in each region's groups.
   let outcome: "sent" | "updated" | "unchanged" = "unchanged";
   for (const { group, suffix } of targets) {
-    const html = uploadSummaryMessage(serviceInfo(service, group), entries);
-    // Everything was deleted: leave the last post as it was.
-    if (!html) return "unchanged";
+    const html = uploadSummaryMessage(serviceInfo(service, group), entriesFor(group.media), group.media);
+    // Nothing of this kind (or everything was deleted): leave the last post as it was.
+    if (!html) continue;
     const result = await postSummaryTo(group, `upload_summary:${serviceId}${suffix}`, serviceId, html);
     if (result !== "unchanged") outcome = result;
   }
@@ -372,13 +412,17 @@ export async function announceUploads(serviceIds: string[]): Promise<void> {
 }
 
 /** Who still owes what for a service, ready to be tagged. */
-async function reminderTargets(serviceId: string): Promise<ReminderTarget[]> {
+async function reminderTargets(serviceId: string, group: Group): Promise<ReminderTarget[]> {
   const admin = createAdminClient();
-  const { data: assignments } = await admin
-    .from("assignments")
-    .select("id, profile_id")
-    .eq("service_id", serviceId);
-  if (!assignments || assignments.length === 0) return [];
+  const [{ data: allAssignments }, media] = await Promise.all([
+    admin.from("assignments").select("id, profile_id, duty_role_id").eq("service_id", serviceId),
+    roleMedia(),
+  ]);
+  // Photographers are chased in the photography group, and so on.
+  const assignments = (allAssignments ?? []).filter((assignment) =>
+    roleFits(media.get(assignment.duty_role_id) ?? null, group),
+  );
+  if (assignments.length === 0) return [];
 
   const [tasks, uploads, categories, people] = await Promise.all([
     admin
@@ -440,12 +484,15 @@ export type ReminderOutcome =
   | "failed";
 
 /**
- * Sends the upload reminder for a service. `key` decides how often: scheduled
- * reminders use one key per stage, the admin's "send now" button a fresh one.
+ * Sends the upload reminder for a service to each of its groups, chasing in
+ * each only the people whose role fits it. `key` decides how often:
+ * scheduled reminders use one key per stage, the "send now" button a fresh
+ * one. `dueAt` (scheduled reminders) skips groups linked after it fell due.
  */
 export async function sendUploadReminder(
   serviceId: string,
   key: string,
+  dueAt?: Date,
 ): Promise<ReminderOutcome> {
   try {
     const groups = await loadGroups();
@@ -453,24 +500,35 @@ export async function sendUploadReminder(
 
     const { data: service } = await createAdminClient()
       .from("services")
-      .select("id, name, starts_at, region_id")
+      .select("id, name, starts_at, region_id, shared_region_ids")
       .eq("id", serviceId)
       .maybeSingle();
     if (!service) return "failed";
-    const group = groups.forRegion(service.region_id);
-    if (!group) return "not_linked";
+    const targets = groups.forService(service, "media");
+    if (targets.length === 0) return "not_linked";
 
-    const message = uploadReminderMessage(
-      serviceInfo(service, group),
-      await reminderTargets(serviceId),
-    );
-    if (!message) {
-      await markHandled("upload_reminder", key, serviceId);
-      return "nothing_outstanding";
+    const outcomes: ReminderOutcome[] = [];
+    for (const { group, suffix } of targets) {
+      if (dueAt && dueAt < group.linkedAt) continue;
+      const message = uploadReminderMessage(
+        serviceInfo(service, group),
+        await reminderTargets(serviceId, group),
+        group.media,
+      );
+      if (!message) {
+        await markHandled("upload_reminder", key + suffix, serviceId);
+        outcomes.push("nothing_outstanding");
+        continue;
+      }
+      outcomes.push(
+        (await sendOnce(group, "upload_reminder", key + suffix, serviceId, message))
+          ? "sent"
+          : "already_sent",
+      );
     }
-    return (await sendOnce(group, "upload_reminder", key, serviceId, message))
-      ? "sent"
-      : "already_sent";
+    if (outcomes.includes("sent")) return "sent";
+    if (outcomes.includes("already_sent")) return "already_sent";
+    return "nothing_outstanding";
   } catch (error) {
     console.error("Sending an upload reminder failed", error);
     return "failed";
@@ -513,7 +571,7 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
     const since = new Date(now.getTime() - SWEEP_WINDOW_MS).toISOString();
     const { data: services } = await admin
       .from("services")
-      .select("id, name, starts_at, region_id")
+      .select("id, name, starts_at, region_id, shared_region_ids")
       .gte("starts_at", since)
       .lte("starts_at", now.toISOString());
     const recent = services ?? [];
@@ -532,7 +590,7 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
       // No upload link to give until its Drive folders exist.
       if (service.drive_folder_status !== "ready") continue;
       // A joint service is announced in each region's group.
-      for (const { group, suffix } of groups.forService(service)) {
+      for (const { group, suffix } of groups.forService(service, "media")) {
         // Not for days that came before the group was linked.
         if (serviceDayPostAt(startsAt) < group.linkedAt && startsAt < group.linkedAt) continue;
         if (await announceServiceDay(group, service, suffix)) result.servicesAnnounced += 1;
@@ -562,15 +620,15 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
 
     // ── Upload reminders ──
     for (const service of recent) {
-      const group = groups.forRegion(service.region_id);
-      if (!group) continue;
       const startsAt = new Date(service.starts_at);
       const stage = dueReminderStage(startsAt, now);
-      if (stage === 0 || reminderDueAt(startsAt, stage) < group.linkedAt) continue;
+      if (stage === 0) continue;
 
+      // Each group is chased once per stage; groups linked after it fell due are skipped.
       const outcome = await sendUploadReminder(
         service.id,
         `upload_reminder:${service.id}:${stage}`,
+        reminderDueAt(startsAt, stage),
       );
       if (outcome === "sent") result.reminders += 1;
       // If stage 2 is due, stage 1 is moot: never send it late.
@@ -641,40 +699,40 @@ export async function sendDueNotifications(now: Date = new Date()): Promise<Swee
       const category = categoryById.get(handoff.category_id);
       const team = teamById.get(handoff.team_id);
       if (!service || !category || !team) continue;
-      const group = groups.forRegion(service.region_id);
-      if (!group) continue;
-
-      const info = {
-        categoryName: category.name,
-        teamName: team.name,
-        service: serviceInfo(service, group),
-        due: formatChurchDateTime(handoff.due_at),
-        albumUrl: `${appUrl()}/services/${service.id}/${category.slug}`,
-        teamMembers: teamMembers(team.id, [service.region_id, ...service.shared_region_ids]),
-      };
       const dueAt = new Date(handoff.due_at);
       const readyAt = handoff.ready_at ? new Date(handoff.ready_at) : null;
 
-      if (dueAt < now && dueAt >= group.linkedAt) {
-        const sent = await sendOnce(
-          group,
-          "handoff_late",
-          `handoff_late:${handoff.id}`,
-          service.id,
-          handoffLateMessage({ ...info, isReady: readyAt !== null }),
-        );
-        if (sent) result.late += 1;
-      } else if (readyAt && readyAt >= group.linkedAt && dueAt >= now) {
-        // Keyed by when it became ready, so reopening a task and finishing it
-        // again tells the team again.
-        const sent = await sendOnce(
-          group,
-          "handoff_ready",
-          `handoff_ready:${handoff.id}:${handoff.ready_at}`,
-          service.id,
-          handoffReadyMessage(info),
-        );
-        if (sent) result.ready += 1;
+      // Groups with handoff alerts on, in every region the service is for.
+      for (const { group, suffix } of groups.forService(service, "handoffs")) {
+        const info = {
+          categoryName: category.name,
+          teamName: team.name,
+          service: serviceInfo(service, group),
+          due: formatChurchDateTime(handoff.due_at),
+          albumUrl: `${appUrl()}/services/${service.id}/${category.slug}`,
+          teamMembers: teamMembers(team.id, [service.region_id, ...service.shared_region_ids]),
+        };
+        if (dueAt < now && dueAt >= group.linkedAt) {
+          const sent = await sendOnce(
+            group,
+            "handoff_late",
+            `handoff_late:${handoff.id}${suffix}`,
+            service.id,
+            handoffLateMessage({ ...info, isReady: readyAt !== null }),
+          );
+          if (sent) result.late += 1;
+        } else if (readyAt && readyAt >= group.linkedAt && dueAt >= now) {
+          // Keyed by when it became ready, so reopening a task and finishing it
+          // again tells the team again.
+          const sent = await sendOnce(
+            group,
+            "handoff_ready",
+            `handoff_ready:${handoff.id}:${handoff.ready_at}${suffix}`,
+            service.id,
+            handoffReadyMessage(info),
+          );
+          if (sent) result.ready += 1;
+        }
       }
     }
   } catch (error) {

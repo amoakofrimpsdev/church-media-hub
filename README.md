@@ -111,9 +111,13 @@ even if a page has a bug.
 
 ## What the Telegram bot posts
 
-The bot posts in the region's own group if it has one, otherwise in the
-church's main group (with the region's name on each post). It tags only the
-people a message is about.
+The bot posts in the region's own groups if it has any, otherwise in the
+church's main group (with the region's name on each post). A region can have
+several groups, each for **photography**, **video** or **everything**: a
+photography group gets photo upload links, photo reminders and the list of
+photos uploaded, tagging only photographers; a video group the same for
+videos and videographers. Handoff alerts go only to groups that have them
+switched on. The bot tags only the people a message is about.
 
 | Message | When |
 |---|---|
