@@ -158,6 +158,10 @@ test("create a service, upload a photo, and see it in the gallery", async ({
       tile.locator("img").evaluate((img: HTMLImageElement) => img.naturalWidth),
     )
     .toBeGreaterThan(0);
+  // The image comes from Google, not through the app (the hosting allowance).
+  const thumb = await page.request.get(`/api/thumb/${uploads?.[0].id}?size=400`, { maxRedirects: 0 });
+  expect(thumb.status()).toBe(302);
+  expect(thumb.headers()["location"]).toContain(fakeGoogleUrl);
 
   // ── Open it full size and download the original ──
   await tile.click();

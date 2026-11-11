@@ -28,8 +28,12 @@ async function thumbnailLinkFor(
 }
 
 /**
- * Fetches a preview image for a Drive file and wraps it as a response for the
- * browser. Returns a 404 when Google has no preview (yet).
+ * Sends the browser to Google's preview image for a Drive file. Returns a 404
+ * when Google has no preview (yet).
+ *
+ * The image itself comes straight from Google, not through this server:
+ * Google's thumbnail link is pre-signed and short-lived, so passing the bytes
+ * through Vercel only spent the hosting allowance (it was most of it).
  *
  * The caller must already have checked that whoever is asking may see the
  * file: this function does no access control.
@@ -39,25 +43,18 @@ export async function thumbnailResponse(
   size: ThumbnailSize,
   account: DriveAccount,
 ): Promise<Response> {
-  const notFound = () =>
-    new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
-
   try {
     const link = await thumbnailLinkFor(driveFileId, account);
     // Google takes a little while to make previews for new uploads.
-    if (!link) return notFound();
+    if (!link) return new Response(null, { status: 404, headers: { "Cache-Control": "no-store" } });
 
-    const image = await fetch(sizedThumbnailLink(link, size), { cache: "no-store" });
-    if (!image.ok || !image.body) {
-      linkCache.delete(driveFileId);
-      return notFound();
-    }
-    return new Response(image.body, {
+    return new Response(null, {
+      status: 302,
       headers: {
-        "Content-Type": image.headers.get("content-type") ?? "image/jpeg",
-        // "private": cache in this person's browser only, never on a shared
-        // CDN, because who may see an image depends on who is asking.
-        "Cache-Control": "private, max-age=86400, stale-while-revalidate=604800",
+        Location: sizedThumbnailLink(link, size),
+        // "private": who may see an image depends on who is asking. Shorter
+        // than Google's link lives, so the browser never follows a dead one.
+        "Cache-Control": "private, max-age=600",
         "Referrer-Policy": "no-referrer",
       },
     });
