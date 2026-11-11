@@ -1160,3 +1160,17 @@ The routing rules live in `lib/domain/telegram-groups.ts`, pure and tested.
 The first group keeps the old "send once" keys, so nothing is posted twice
 when this goes live. What the Instagram group gets is still to decide; for
 now it can be an Everything group with handoff alerts, or have them off.
+
+## Thumbnails come straight from Google
+
+**Choice:** `/api/thumb` and the share-link thumbnail route check who is asking,
+then redirect the browser to Google's pre-signed thumbnail link instead of
+fetching the image and passing it on.
+
+**Why:** Relaying every grid tile and full-size view through Vercel used up
+almost all of the free plan's 10 GB of "Fast Origin Transfer" in a month (on
+Hobby, going over pauses the site). Google's thumbnail link already worked
+without any login (the server fetched it bare), so handing it to an allowed
+viewer exposes nothing new; it is short-lived, and the redirect is cached for
+10 minutes, well inside its life. Original downloads still go through the
+app, because Google offers no signed link for those.
